@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: l2unity
+      POSTGRES_PASSWORD: l2unity
+      POSTGRES_DB: l2unity
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./sql/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
