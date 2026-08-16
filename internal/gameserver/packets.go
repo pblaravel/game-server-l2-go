@@ -614,6 +614,46 @@ func ChangeMoveType(objectID int32, running bool) []byte {
 	})
 }
 
+func ShortCutInit(shortcuts []Shortcut) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x45)
+		w.WriteD(int32(len(shortcuts)))
+		for _, sc := range shortcuts {
+			w.WriteD(sc.Type)
+			w.WriteD(sc.Slot + sc.Page*12)
+			switch sc.Type {
+			case 1: // ITEM
+				w.WriteD(sc.ID)
+				if sc.CharacterType == 0 {
+					w.WriteD(1)
+				} else {
+					w.WriteD(sc.CharacterType)
+				}
+				w.WriteD(0)
+				w.WriteD(0)
+				w.WriteD(0)
+				w.WriteD(0)
+			case 2: // SKILL
+				w.WriteD(sc.ID)
+				w.WriteD(sc.Level)
+				w.WriteC(0)
+				if sc.CharacterType == 0 {
+					w.WriteD(1)
+				} else {
+					w.WriteD(sc.CharacterType)
+				}
+			default:
+				w.WriteD(sc.ID)
+				if sc.CharacterType == 0 {
+					w.WriteD(1)
+				} else {
+					w.WriteD(sc.CharacterType)
+				}
+			}
+		}
+	})
+}
+
 func RestartResponse(ok bool) []byte {
 	return gsWrite(func(w *packet.Writer) {
 		w.WriteC(0x5F)

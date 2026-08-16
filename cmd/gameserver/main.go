@@ -23,9 +23,16 @@ func main() {
 	defer stop()
 
 	var store gameserver.CharacterStore
+	var npcs []gameserver.NPC
 	if pool, err := db.Connect(ctx, cfg.DatabaseURL); err == nil {
 		defer pool.Close()
+		if err := db.ApplySchemaAndSeed(ctx, pool, db.FindSQLDir()); err != nil {
+			log.Printf("schema/seed: %v", err)
+		}
 		store = db.NewCharacterRepo(pool)
+		if loaded, err := db.NewNpcRepo(pool).ListSpawns(ctx); err == nil {
+			npcs = loaded
+		}
 		log.Printf("game server using PostgreSQL")
 	} else {
 		log.Printf("PostgreSQL unavailable (%v), using in-memory store", err)
@@ -33,6 +40,10 @@ func main() {
 	}
 
 	srv := gameserver.NewServer(cfg, store)
+	if len(npcs) > 0 {
+		srv.SeedWorld(npcs)
+		log.Printf("loaded %d NPC spawns from database", len(npcs))
+	}
 	log.Printf("Starting L2 Unity GameServer (Go)")
 	if err := srv.Run(ctx); err != nil {
 		log.Fatal(err)

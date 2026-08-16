@@ -26,6 +26,9 @@ func main() {
 	var games loginserver.GameServerStore = loginserver.NewMemoryGameServerStore()
 	if pool, err := db.Connect(ctx, cfg.DatabaseURL); err == nil {
 		defer pool.Close()
+		if err := db.ApplySchemaAndSeed(ctx, pool, db.FindSQLDir()); err != nil {
+			log.Printf("schema/seed: %v", err)
+		}
 		accounts = db.NewAccountRepo(pool)
 		games = db.NewGameServerRepo(pool)
 		log.Printf("login server using PostgreSQL")

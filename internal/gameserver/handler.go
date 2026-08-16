@@ -248,7 +248,13 @@ func (s *Server) onCharCreate(c *GameClient, data []byte) {
 		c.Send(CharCreateFail(CharCreateFailed))
 		return
 	}
-	ch := DefaultCharacter(c.AccountName(), name, classID, race, sex, hair, color, face, oid)
+	ch := DefaultCharacter(c.AccountName(), name, classID, race, sex, hair, color, face, oid, func() int32 {
+		id, err := s.store.NextObjectID(c.ctx())
+		if err != nil {
+			return 0
+		}
+		return id
+	})
 	ch.LastAccess = time.Now().UnixMilli()
 	if err := s.store.Create(c.ctx(), ch); err != nil {
 		c.Send(CharCreateFail(CharCreateFailed))
@@ -307,6 +313,7 @@ func (s *Server) onEnterWorld(c *GameClient) {
 	c.Send(UserInfo(p))
 	c.Send(ItemList(p.Items, false))
 	c.Send(SkillList(p.Skills))
+	c.Send(ShortCutInit(p.Shortcuts))
 	for _, other := range s.world.Players() {
 		if other.ObjectID == p.ObjectID {
 			continue

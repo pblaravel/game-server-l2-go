@@ -25,8 +25,27 @@ func NewServer(cfg config.GameConfig, store CharacterStore) *Server {
 	w := NewWorld()
 	s := &Server{cfg: cfg, world: w, store: store}
 	s.login = NewLoginServerThread(cfg, w)
-	s.seedNPCs()
+	s.SeedWorld(nil)
 	return s
+}
+
+// SeedWorld replaces world NPCs. Empty list falls back to the Interlude newbie set.
+func (s *Server) SeedWorld(npcs []NPC) {
+	s.world.ClearNPCs()
+	if len(npcs) == 0 {
+		s.world.LoadDefaultSpawns()
+		return
+	}
+	for _, n := range npcs {
+		cp := n
+		if cp.ObjectID == 0 {
+			cp.ObjectID = s.world.NextID()
+		}
+		if cp.CurHP == 0 {
+			cp.CurHP = cp.MaxHP
+		}
+		s.world.AddNPC(&cp)
+	}
 }
 
 func (s *Server) Login() *LoginServerThread { return s.login }
@@ -72,16 +91,3 @@ func (s *Server) Broadcast(payload []byte, except *GameClient) {
 	}
 }
 
-func (s *Server) seedNPCs() {
-	// Talking Island newbie helpers so EnterWorld is not empty.
-	s.world.AddNPC(&NPC{
-		ObjectID: s.world.NextID(), NPCID: 30006, Name: "Gatekeeper Roxxy",
-		X: -71338, Y: 258271, Z: -3104, Heading: 0, Level: 70,
-		MaxHP: 10000, CurHP: 10000, IsAttackable: false,
-	})
-	s.world.AddNPC(&NPC{
-		ObjectID: s.world.NextID(), NPCID: 30001, Name: "Weapon Merchant Lector",
-		X: -71400, Y: 258200, Z: -3104, Heading: 0, Level: 70,
-		MaxHP: 8000, CurHP: 8000, IsAttackable: false,
-	})
-}

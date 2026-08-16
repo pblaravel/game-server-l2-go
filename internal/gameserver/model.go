@@ -96,6 +96,7 @@ type Character struct {
 	PaperdollItem                [PaperCount]int32
 	Items                        []Item
 	Skills                       []Skill
+	Shortcuts                    []Shortcut
 	MoveDirX                     int32
 	MoveDirY                     int32
 	VerticalVel                  int32
@@ -108,6 +109,17 @@ type Skill struct {
 	Level    int32
 	Passive  bool
 	Disabled bool
+}
+
+// Shortcut matches Java com.shnok.javaserver.gameserver.model.Shortcut.
+// Type: 0 NONE, 1 ITEM, 2 SKILL, 3 ACTION, 4 MACRO, 5 RECIPE.
+type Shortcut struct {
+	Slot          int32
+	Page          int32
+	Type          int32
+	ID            int32
+	Level         int32
+	CharacterType int32
 }
 
 type NPC struct {
@@ -141,7 +153,7 @@ func NewWorld() *World {
 		players:  make(map[int32]*Character),
 		byName:   make(map[string]*Character),
 		npcs:     make(map[int32]*NPC),
-		nextID:   268435456,
+		nextID:   500000000,
 		gameTime: 0,
 	}
 }
@@ -193,6 +205,15 @@ func (w *World) Players() []*Character {
 	return out
 }
 
+func (w *World) ClearNPCs() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	for id := range w.npcs {
+		delete(w.objects, id)
+	}
+	w.npcs = make(map[int32]*NPC)
+}
+
 func (w *World) AddNPC(n *NPC) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -236,14 +257,14 @@ var startingClasses = map[int32]StartingClass{
 	53: {53, 4, 108567, -174008, -400, 39, 29, 45, 20, 10, 27, 80, 30, 40},
 }
 
-func DefaultCharacter(account, name string, classID, race, sex, hair, color, face int32, objectID int32) *Character {
+func DefaultCharacter(account, name string, classID, race, sex, hair, color, face int32, objectID int32, nextItemID func() int32) *Character {
 	tpl, ok := startingClasses[classID]
 	if !ok {
 		tpl = startingClasses[0]
 		classID = 0
 		race = 0
 	}
-	return &Character{
+	ch := &Character{
 		ObjectID: objectID, Account: account, Name: name,
 		Level: 1, MaxHP: tpl.HP, CurHP: float64(tpl.HP), MaxMP: tpl.MP, CurMP: float64(tpl.MP),
 		MaxCP: tpl.CP, CurCP: float64(tpl.CP),
@@ -254,6 +275,11 @@ func DefaultCharacter(account, name string, classID, race, sex, hair, color, fac
 		PAtk: 10, PDef: 20, MAtk: 8, MDef: 20, PAtkSpd: 300, MAtkSpd: 333,
 		Accuracy: 30, Evasion: 30, Crit: 40, RunSpeed: 120, WalkSpeed: 80,
 		NameColor: 0xFFFFFF, TitleColor: 0xFFFF77, InventoryLimit: 80,
-		Items: []Item{}, Skills: []Skill{},
 	}
+	if nextItemID == nil {
+		n := objectID + 1000
+		nextItemID = func() int32 { n++; return n }
+	}
+	ApplyStarterKit(ch, nextItemID)
+	return ch
 }

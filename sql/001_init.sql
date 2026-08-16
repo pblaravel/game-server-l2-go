@@ -249,12 +249,16 @@ CREATE TABLE IF NOT EXISTS clan_wars (
 );
 
 CREATE TABLE IF NOT EXISTS castle (
-    id            INTEGER PRIMARY KEY,
-    name          VARCHAR(25) NOT NULL,
-    tax_percent   INTEGER NOT NULL DEFAULT 0,
-    treasury      BIGINT NOT NULL DEFAULT 0,
-    siege_date    BIGINT NOT NULL DEFAULT 0,
-    reg_time_end  BIGINT NOT NULL DEFAULT 0
+    id                 INTEGER PRIMARY KEY,
+    name               VARCHAR(25) NOT NULL DEFAULT '',
+    current_tax_percent INTEGER NOT NULL DEFAULT 0,
+    next_tax_percent   INTEGER NOT NULL DEFAULT 0,
+    treasury           BIGINT NOT NULL DEFAULT 0,
+    tax_revenue        BIGINT NOT NULL DEFAULT 0,
+    seed_income        BIGINT NOT NULL DEFAULT 0,
+    siege_date         BIGINT NOT NULL DEFAULT 0,
+    reg_time_over      BOOLEAN NOT NULL DEFAULT TRUE,
+    certificates       SMALLINT NOT NULL DEFAULT 300
 );
 
 CREATE TABLE IF NOT EXISTS siege_clans (
@@ -265,14 +269,18 @@ CREATE TABLE IF NOT EXISTS siege_clans (
 );
 
 CREATE TABLE IF NOT EXISTS clanhall (
-    id            INTEGER PRIMARY KEY,
-    name          VARCHAR(40) NOT NULL,
-    owner_id      INTEGER NOT NULL DEFAULT 0,
-    lease         INTEGER NOT NULL DEFAULT 0,
-    desc          TEXT,
-    location      VARCHAR(80),
-    paid_until    BIGINT NOT NULL DEFAULT 0,
-    grade         INTEGER NOT NULL DEFAULT 0
+    id               INTEGER PRIMARY KEY,
+    name             VARCHAR(40) NOT NULL DEFAULT '',
+    owner_id         INTEGER NOT NULL DEFAULT 0,
+    paid_until       BIGINT NOT NULL DEFAULT 0,
+    paid             SMALLINT NOT NULL DEFAULT 0,
+    seller_bid       INTEGER NOT NULL DEFAULT 0,
+    seller_name      VARCHAR(20) NOT NULL DEFAULT '',
+    seller_clan_name VARCHAR(20) NOT NULL DEFAULT '',
+    end_date         BIGINT NOT NULL DEFAULT 0,
+    lease            INTEGER NOT NULL DEFAULT 0,
+    location         VARCHAR(80) NOT NULL DEFAULT '',
+    grade            INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS items_on_ground (
@@ -317,10 +325,81 @@ CREATE TABLE IF NOT EXISTS seven_signs (
 
 CREATE TABLE IF NOT EXISTS seven_signs_status (
     id                    INTEGER PRIMARY KEY,
-    current_cycle         INTEGER NOT NULL,
-    dawn_stone_score      INTEGER NOT NULL,
-    dusk_stone_score      INTEGER NOT NULL,
-    current_status        INTEGER NOT NULL
+    current_cycle         INTEGER NOT NULL DEFAULT 1,
+    festival_cycle        INTEGER NOT NULL DEFAULT 1,
+    active_period         VARCHAR(16) NOT NULL DEFAULT 'COMPETITION',
+    date                  BIGINT NOT NULL DEFAULT 0,
+    previous_winner       VARCHAR(8) NOT NULL DEFAULT 'NORMAL',
+    dawn_stone_score      BIGINT NOT NULL DEFAULT 0,
+    dawn_festival_score   INTEGER NOT NULL DEFAULT 0,
+    dusk_stone_score      BIGINT NOT NULL DEFAULT 0,
+    dusk_festival_score   INTEGER NOT NULL DEFAULT 0,
+    avarice_owner         VARCHAR(8) NOT NULL DEFAULT 'NORMAL',
+    gnosis_owner          VARCHAR(8) NOT NULL DEFAULT 'NORMAL',
+    strife_owner          VARCHAR(8) NOT NULL DEFAULT 'NORMAL',
+    avarice_dawn_score    INTEGER NOT NULL DEFAULT 0,
+    gnosis_dawn_score     INTEGER NOT NULL DEFAULT 0,
+    strife_dawn_score     INTEGER NOT NULL DEFAULT 0,
+    avarice_dusk_score    INTEGER NOT NULL DEFAULT 0,
+    gnosis_dusk_score     INTEGER NOT NULL DEFAULT 0,
+    strife_dusk_score     INTEGER NOT NULL DEFAULT 0,
+    accumulated_bonus0    INTEGER NOT NULL DEFAULT 0,
+    accumulated_bonus1    INTEGER NOT NULL DEFAULT 0,
+    accumulated_bonus2    INTEGER NOT NULL DEFAULT 0,
+    accumulated_bonus3    INTEGER NOT NULL DEFAULT 0,
+    accumulated_bonus4    INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS seven_signs_festival (
+    festival_id INTEGER NOT NULL,
+    cabal       VARCHAR(4) NOT NULL,
+    cycle       INTEGER NOT NULL,
+    date        BIGINT DEFAULT 0,
+    score       INTEGER NOT NULL DEFAULT 0,
+    members     VARCHAR(255) NOT NULL DEFAULT '',
+    PRIMARY KEY (festival_id, cabal, cycle)
+);
+
+CREATE TABLE IF NOT EXISTS mdt_bets (
+    lane_id INTEGER PRIMARY KEY,
+    bet     INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS npc_templates (
+    npc_id        INTEGER PRIMARY KEY,
+    name          VARCHAR(80) NOT NULL,
+    title         VARCHAR(80) NOT NULL DEFAULT '',
+    level         INTEGER NOT NULL DEFAULT 1,
+    maxhp         INTEGER NOT NULL DEFAULT 100,
+    maxmp         INTEGER NOT NULL DEFAULT 0,
+    is_attackable BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS npc_spawns (
+    id        SERIAL PRIMARY KEY,
+    npc_id    INTEGER NOT NULL,
+    x         INTEGER NOT NULL,
+    y         INTEGER NOT NULL,
+    z         INTEGER NOT NULL,
+    heading   INTEGER NOT NULL DEFAULT 0,
+    respawn   INTEGER NOT NULL DEFAULT 60
+);
+
+CREATE TABLE IF NOT EXISTS player_levels (
+    level INTEGER PRIMARY KEY,
+    exp   BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS class_templates (
+    class_id INTEGER PRIMARY KEY,
+    name     VARCHAR(40) NOT NULL,
+    race     INTEGER NOT NULL,
+    is_mage  BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    id         INTEGER PRIMARY KEY,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS olympiad_nobles (

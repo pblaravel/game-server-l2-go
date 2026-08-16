@@ -89,7 +89,7 @@ func TestGameClientAcceptLoad(t *testing.T) {
 }
 
 func BenchmarkUserInfo(b *testing.B) {
-	ch := DefaultCharacter("a", "Hero", 0, 0, 0, 0, 0, 0, 1)
+	ch := DefaultCharacter("a", "Hero", 0, 0, 0, 0, 0, 0, 1, nil)
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_ = UserInfo(ch)

@@ -19,6 +19,8 @@ internal/packet   # LE writer/reader + length framing
 internal/loginserver
 internal/gameserver
 sql/001_init.sql  # PostgreSQL schema (accounts, characters, clans, …)
+sql/002_seed.sql  # Java castle/clanhall/7s/mdt + newbie NPCs/levels
+docs/COVERAGE.md  # Java → Go functionality and seed audit
 reference/        # original Java trees
 ```
 
@@ -26,7 +28,8 @@ reference/        # original Java trees
 
 ```bash
 docker compose up -d postgres
-psql postgres://l2unity:l2unity@localhost:5432/l2unity -f sql/001_init.sql   # if not using compose init
+# compose already applies sql/001_init.sql + sql/002_seed.sql
+# both servers also run ApplySchemaAndSeed on connect
 make build
 ./bin/loginserver
 ./bin/gameserver
@@ -54,4 +57,4 @@ make load                # handshake load only
 
 ## Protocol
 
-See [docs/PROTOCOL.md](docs/PROTOCOL.md).
+See [docs/PROTOCOL.md](docs/PROTOCOL.md). Java vs Go coverage: [docs/COVERAGE.md](docs/COVERAGE.md).

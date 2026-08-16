@@ -28,7 +28,7 @@ func TestVersionCheckLayout(t *testing.T) {
 }
 
 func TestCharSelectInfoOpcode(t *testing.T) {
-	ch := DefaultCharacter("acc", "Hero", 0, 0, 0, 0, 0, 0, 100)
+	ch := DefaultCharacter("acc", "Hero", 0, 0, 0, 0, 0, 0, 100, nil)
 	p := CharSelectInfo("acc", 42, []*Character{ch})
 	if p[0] != 0x13 {
 		t.Fatalf("opcode %d", p[0])

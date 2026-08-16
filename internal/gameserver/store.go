@@ -26,14 +26,30 @@ func NewMemoryCharacterStore() *MemoryCharacterStore {
 	return &MemoryCharacterStore{chars: make(map[int32]*Character), nextID: 300000000}
 }
 
+func cloneCharacter(ch *Character) *Character {
+	if ch == nil {
+		return nil
+	}
+	cp := *ch
+	if ch.Items != nil {
+		cp.Items = append([]Item(nil), ch.Items...)
+	}
+	if ch.Skills != nil {
+		cp.Skills = append([]Skill(nil), ch.Skills...)
+	}
+	if ch.Shortcuts != nil {
+		cp.Shortcuts = append([]Shortcut(nil), ch.Shortcuts...)
+	}
+	return &cp
+}
+
 func (s *MemoryCharacterStore) ListByAccount(_ context.Context, account string) ([]*Character, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var out []*Character
 	for _, c := range s.chars {
 		if c.Account == account {
-			cp := *c
-			out = append(out, &cp)
+			out = append(out, cloneCharacter(c))
 		}
 	}
 	return out, nil
@@ -46,8 +62,7 @@ func (s *MemoryCharacterStore) GetByObjectID(_ context.Context, id int32) (*Char
 	if !ok {
 		return nil, nil
 	}
-	cp := *c
-	return &cp, nil
+	return cloneCharacter(c), nil
 }
 
 func (s *MemoryCharacterStore) GetObjectIDByName(_ context.Context, name string) (int32, error) {
@@ -76,16 +91,14 @@ func (s *MemoryCharacterStore) CountByAccount(_ context.Context, account string)
 func (s *MemoryCharacterStore) Create(_ context.Context, ch *Character) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cp := *ch
-	s.chars[ch.ObjectID] = &cp
+	s.chars[ch.ObjectID] = cloneCharacter(ch)
 	return nil
 }
 
 func (s *MemoryCharacterStore) Update(_ context.Context, ch *Character) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cp := *ch
-	s.chars[ch.ObjectID] = &cp
+	s.chars[ch.ObjectID] = cloneCharacter(ch)
 	return nil
 }
 

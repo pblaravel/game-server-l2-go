@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/pblaravel/game-server-l2-go/internal/gameserver"
@@ -117,7 +118,15 @@ func (r *CharacterRepo) ListByAccount(ctx context.Context, account string) ([]*g
 		}
 		out = append(out, ch)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for _, ch := range out {
+		if err := r.loadOwned(ctx, ch); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 func (r *CharacterRepo) GetByObjectID(ctx context.Context, id int32) (*gameserver.Character, error) {
@@ -130,6 +139,9 @@ func (r *CharacterRepo) GetByObjectID(ctx context.Context, id int32) (*gameserve
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
+		return nil, err
+	}
+	if err := r.loadOwned(ctx, ch); err != nil {
 		return nil, err
 	}
 	return ch, nil
@@ -154,7 +166,12 @@ func (r *CharacterRepo) CountByAccount(ctx context.Context, account string) (int
 }
 
 func (r *CharacterRepo) Create(ctx context.Context, ch *gameserver.Character) error {
-	_, err := r.p.p.Exec(ctx, `INSERT INTO characters (
+	tx, err := r.p.p.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	_, err = tx.Exec(ctx, `INSERT INTO characters (
 		obj_id, account_name, char_name, title, level, maxhp, curhp, maxmp, curmp, maxcp, curcp,
 		face, hairstyle, haircolor, sex, heading, x, y, z, exp, sp, karma, pvpkills, pkkills, clanid, race, classid, base_class,
 		deletetime, accesslevel, lastaccess, str, dex, con, intel, wit, men)
@@ -162,21 +179,54 @@ func (r *CharacterRepo) Create(ctx context.Context, ch *gameserver.Character) er
 		ch.ObjectID, ch.Account, ch.Name, ch.Title, ch.Level, ch.MaxHP, ch.CurHP, ch.MaxMP, ch.CurMP, ch.MaxCP, ch.CurCP,
 		ch.Face, ch.HairStyle, ch.HairColor, ch.Sex, ch.Heading, ch.X, ch.Y, ch.Z, ch.Exp, ch.SP, ch.Karma, ch.PvPKills, ch.PKKills, ch.ClanID, ch.Race, ch.ClassID, ch.BaseClass,
 		ch.DeleteTime, ch.AccessLevel, ch.LastAccess, ch.STR, ch.DEX, ch.CON, ch.INT, ch.WIT, ch.MEN)
-	return err
+	if err != nil {
+		return err
+	}
+	if err := saveOwned(ctx, tx, ch); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *CharacterRepo) Update(ctx context.Context, ch *gameserver.Character) error {
-	_, err := r.p.p.Exec(ctx, `UPDATE characters SET title=$2, level=$3, maxhp=$4, curhp=$5, maxmp=$6, curmp=$7, maxcp=$8, curcp=$9,
+	tx, err := r.p.p.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	_, err = tx.Exec(ctx, `UPDATE characters SET title=$2, level=$3, maxhp=$4, curhp=$5, maxmp=$6, curmp=$7, maxcp=$8, curcp=$9,
 		heading=$10, x=$11, y=$12, z=$13, exp=$14, sp=$15, karma=$16, pvpkills=$17, pkkills=$18, lastaccess=$19, classid=$20
 		WHERE obj_id=$1`,
 		ch.ObjectID, ch.Title, ch.Level, ch.MaxHP, ch.CurHP, ch.MaxMP, ch.CurMP, ch.MaxCP, ch.CurCP,
 		ch.Heading, ch.X, ch.Y, ch.Z, ch.Exp, ch.SP, ch.Karma, ch.PvPKills, ch.PKKills, ch.LastAccess, ch.ClassID)
-	return err
+	if err != nil {
+		return err
+	}
+	if err := saveOwned(ctx, tx, ch); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *CharacterRepo) Delete(ctx context.Context, id int32) error {
-	_, err := r.p.p.Exec(ctx, `DELETE FROM characters WHERE obj_id=$1`, id)
-	return err
+	tx, err := r.p.p.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `DELETE FROM items WHERE owner_id=$1`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM character_skills WHERE char_obj_id=$1`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM character_shortcuts WHERE char_obj_id=$1`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM characters WHERE obj_id=$1`, id); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *CharacterRepo) NextObjectID(ctx context.Context) (int32, error) {
@@ -193,6 +243,147 @@ func scanCharacter(s scanner, ch *gameserver.Character) error {
 	return s.Scan(&ch.ObjectID, &ch.Account, &ch.Name, &ch.Title, &ch.Level, &ch.MaxHP, &ch.CurHP, &ch.MaxMP, &ch.CurMP, &ch.MaxCP, &ch.CurCP,
 		&ch.Face, &ch.HairStyle, &ch.HairColor, &ch.Sex, &ch.Heading, &ch.X, &ch.Y, &ch.Z, &ch.Exp, &ch.SP, &ch.Karma, &ch.PvPKills, &ch.PKKills, &ch.ClanID, &ch.Race, &ch.ClassID, &ch.BaseClass,
 		&ch.DeleteTime, &ch.AccessLevel, &ch.LastAccess, &ch.STR, &ch.DEX, &ch.CON, &ch.INT, &ch.WIT, &ch.MEN)
+}
+
+type queryExecer interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+}
+
+func (r *CharacterRepo) loadOwned(ctx context.Context, ch *gameserver.Character) error {
+	if err := loadItems(ctx, r.p.p, ch); err != nil {
+		return err
+	}
+	if err := loadSkills(ctx, r.p.p, ch); err != nil {
+		return err
+	}
+	return loadShortcuts(ctx, r.p.p, ch)
+}
+
+func saveOwned(ctx context.Context, q queryExecer, ch *gameserver.Character) error {
+	if _, err := q.Exec(ctx, `DELETE FROM items WHERE owner_id=$1`, ch.ObjectID); err != nil {
+		return err
+	}
+	if _, err := q.Exec(ctx, `DELETE FROM character_skills WHERE char_obj_id=$1`, ch.ObjectID); err != nil {
+		return err
+	}
+	if _, err := q.Exec(ctx, `DELETE FROM character_shortcuts WHERE char_obj_id=$1`, ch.ObjectID); err != nil {
+		return err
+	}
+	for _, it := range ch.Items {
+		loc := it.Loc
+		if loc == "" {
+			loc = "INVENTORY"
+		}
+		if it.Equipped {
+			loc = "PAPERDOLL"
+		}
+		if _, err := q.Exec(ctx, `INSERT INTO items (owner_id, object_id, item_id, count, enchant_level, loc, loc_data, custom_type1, custom_type2, mana_left)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+			ch.ObjectID, it.ObjectID, it.ItemID, it.Count, it.Enchant, loc, it.Slot, it.Custom1, it.Custom2, it.ManaLeft); err != nil {
+			return err
+		}
+	}
+	for _, sk := range ch.Skills {
+		if _, err := q.Exec(ctx, `INSERT INTO character_skills (char_obj_id, skill_id, skill_level, class_index)
+			VALUES ($1,$2,$3,0)`, ch.ObjectID, sk.ID, sk.Level); err != nil {
+			return err
+		}
+	}
+	for _, sc := range ch.Shortcuts {
+		if _, err := q.Exec(ctx, `INSERT INTO character_shortcuts (char_obj_id, slot, page, type, shortcut_id, level, class_index)
+			VALUES ($1,$2,$3,$4,$5,$6,0)`, ch.ObjectID, sc.Slot, sc.Page, sc.Type, sc.ID, sc.Level); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func loadItems(ctx context.Context, q queryExecer, ch *gameserver.Character) error {
+	rows, err := q.Query(ctx, `SELECT object_id, item_id, count, enchant_level, COALESCE(loc,''), COALESCE(loc_data,0), custom_type1, custom_type2, mana_left
+		FROM items WHERE owner_id=$1 ORDER BY loc_data, object_id`, ch.ObjectID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	ch.Items = ch.Items[:0]
+	for rows.Next() {
+		var it gameserver.Item
+		if err := rows.Scan(&it.ObjectID, &it.ItemID, &it.Count, &it.Enchant, &it.Loc, &it.Slot, &it.Custom1, &it.Custom2, &it.ManaLeft); err != nil {
+			return err
+		}
+		it.Equipped = it.Loc == "PAPERDOLL"
+		it.BodyPart = gameserver.BodyPartForItem(it.ItemID)
+		if it.Equipped {
+			gameserver.EquipPaperdoll(ch, it.BodyPart, it.ItemID, it.ObjectID)
+		}
+		ch.Items = append(ch.Items, it)
+	}
+	return rows.Err()
+}
+
+func loadSkills(ctx context.Context, q queryExecer, ch *gameserver.Character) error {
+	rows, err := q.Query(ctx, `SELECT skill_id, skill_level FROM character_skills WHERE char_obj_id=$1`, ch.ObjectID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	ch.Skills = ch.Skills[:0]
+	for rows.Next() {
+		var sk gameserver.Skill
+		if err := rows.Scan(&sk.ID, &sk.Level); err != nil {
+			return err
+		}
+		sk.Passive = sk.ID == 194 || sk.ID == 1320 || sk.ID == 1321 || sk.ID == 226
+		ch.Skills = append(ch.Skills, sk)
+	}
+	return rows.Err()
+}
+
+func loadShortcuts(ctx context.Context, q queryExecer, ch *gameserver.Character) error {
+	rows, err := q.Query(ctx, `SELECT slot, page, type, shortcut_id, COALESCE(level,0) FROM character_shortcuts WHERE char_obj_id=$1`, ch.ObjectID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	ch.Shortcuts = ch.Shortcuts[:0]
+	for rows.Next() {
+		var sc gameserver.Shortcut
+		if err := rows.Scan(&sc.Slot, &sc.Page, &sc.Type, &sc.ID, &sc.Level); err != nil {
+			return err
+		}
+		sc.CharacterType = 1
+		ch.Shortcuts = append(ch.Shortcuts, sc)
+	}
+	return rows.Err()
+}
+
+type NpcRepo struct{ p *Pool }
+
+func NewNpcRepo(p *Pool) *NpcRepo { return &NpcRepo{p: p} }
+
+func (r *NpcRepo) ListSpawns(ctx context.Context) ([]gameserver.NPC, error) {
+	rows, err := r.p.p.Query(ctx, `
+		SELECT s.npc_id, COALESCE(t.name, ''), COALESCE(t.title, ''), s.x, s.y, s.z, s.heading,
+		       COALESCE(t.level, 1), COALESCE(t.maxhp, 100), COALESCE(t.maxmp, 0), COALESCE(t.is_attackable, false)
+		FROM npc_spawns s
+		LEFT JOIN npc_templates t ON t.npc_id = s.npc_id
+		ORDER BY s.id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []gameserver.NPC
+	for rows.Next() {
+		var n gameserver.NPC
+		if err := rows.Scan(&n.NPCID, &n.Name, &n.Title, &n.X, &n.Y, &n.Z, &n.Heading, &n.Level, &n.MaxHP, &n.MaxMP, &n.IsAttackable); err != nil {
+			return nil, err
+		}
+		n.CurHP = n.MaxHP
+		n.CurMP = n.MaxMP
+		out = append(out, n)
+	}
+	return out, rows.Err()
 }
 
 func MustConnect(ctx context.Context, url string) *Pool {
