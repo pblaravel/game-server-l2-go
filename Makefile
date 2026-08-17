@@ -1,4 +1,4 @@
-.PHONY: tidy test test-short load build login game
+.PHONY: tidy test test-short load build login game docker-up docker-down docker-smoke
 
 tidy:
 	go mod tidy
@@ -16,9 +16,23 @@ build:
 	mkdir -p bin
 	go build -o bin/loginserver ./cmd/loginserver
 	go build -o bin/gameserver ./cmd/gameserver
+	go build -o bin/smoketest ./cmd/smoketest
 
 login:
 	go run ./cmd/loginserver
 
 game:
 	go run ./cmd/gameserver
+
+# Nested Docker / some VMs drop bridged ICC when bridge-nf-call-iptables=1.
+docker-net:
+	-@sysctl -w net.bridge.bridge-nf-call-iptables=0 net.bridge.bridge-nf-call-ip6tables=0 >/dev/null 2>&1 || true
+
+docker-up: docker-net
+	docker compose up -d --build postgres loginserver gameserver
+
+docker-down:
+	docker compose down
+
+docker-smoke: docker-up
+	docker compose --profile test run --rm smoketest

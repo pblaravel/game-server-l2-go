@@ -65,5 +65,6 @@ func LoadGameConfig(paths ...string) (GameConfig, error) {
 	} else if v := p.String("URL", ""); v != "" {
 		cfg.DatabaseURL = jdbcToPostgres(v, p.String("Login", p.String("database.jdbc.username", "l2unity")), p.String("Password", p.String("database.jdbc.password", "l2unity")))
 	}
+	ApplyGameEnv(&cfg)
 	return cfg, nil
 }

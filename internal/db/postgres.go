@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -27,6 +28,35 @@ func Connect(ctx context.Context, url string) (*Pool, error) {
 		return nil, err
 	}
 	return &Pool{p: p}, nil
+}
+
+// ConnectWithRetry pings Postgres until wait elapses or ctx is cancelled.
+func ConnectWithRetry(ctx context.Context, url string, wait time.Duration) (*Pool, error) {
+	if url == "" {
+		return nil, errors.New("empty database url")
+	}
+	deadline := time.Now().Add(wait)
+	var last error
+	for {
+		attempt, cancel := context.WithTimeout(ctx, 3*time.Second)
+		p, err := Connect(attempt, url)
+		cancel()
+		if err == nil {
+			return p, nil
+		}
+		last = err
+		if ctx.Err() != nil {
+			return nil, last
+		}
+		if time.Now().After(deadline) {
+			return nil, last
+		}
+		select {
+		case <-ctx.Done():
+			return nil, last
+		case <-time.After(time.Second):
+		}
+	}
 }
 
 func (p *Pool) Close() {

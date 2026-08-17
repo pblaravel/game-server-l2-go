@@ -12,5 +12,62 @@ services:
       - ./sql/002_seed.sql:/docker-entrypoint-initdb.d/002_seed.sql:ro
       - ./sql/003_skills.sql:/docker-entrypoint-initdb.d/003_skills.sql:ro
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U l2unity -d l2unity"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  loginserver:
+    build:
+      context: .
+      target: loginserver
+    environment:
+      DATABASE_URL: postgres://l2unity:l2unity@postgres:5432/l2unity?sslmode=disable
+    ports:
+      - "2107:2107"
+      - "9015:9015"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/2107'"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+      start_period: 5s
+    restart: unless-stopped
+
+  gameserver:
+    build:
+      context: .
+      target: gameserver
+    environment:
+      DATABASE_URL: postgres://l2unity:l2unity@postgres:5432/l2unity?sslmode=disable
+      LOGIN_HOST: loginserver
+      LOGIN_PORT: "9015"
+      GAMESERVER_HOSTNAME: "*"
+    ports:
+      - "7778:7778"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      loginserver:
+        condition: service_healthy
+    restart: unless-stopped
+
+  smoketest:
+    build:
+      context: .
+      target: smoketest
+    depends_on:
+      loginserver:
+        condition: service_healthy
+      gameserver:
+        condition: service_started
+    command: ["-wait", "90s", "-login", "loginserver:2107", "-gsreg", "loginserver:9015", "-game", "gameserver:7778"]
+    profiles: ["test"]
+    restart: "no"
+
 volumes:
   pgdata:

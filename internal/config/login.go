@@ -70,6 +70,7 @@ func LoadLoginConfig(paths ...string) (LoginConfig, error) {
 	cfg.PrintReceivedPackets = p.Bool("logger.print.received-packets", cfg.PrintReceivedPackets)
 	cfg.PrintSentPackets = p.Bool("logger.print.sent-packets", cfg.PrintSentPackets)
 	cfg.PrintCryptography = p.Bool("logger.print.cryptography", cfg.PrintCryptography)
+	ApplyLoginEnv(&cfg)
 	return cfg, nil
 }
 

@@ -1,0 +1,8 @@
+.git
+reference
+bin
+**/*_test.go
+**/testdata
+*.md
+.env
+pgdata

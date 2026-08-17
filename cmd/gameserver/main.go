@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/pblaravel/game-server-l2-go/internal/config"
 	"github.com/pblaravel/game-server-l2-go/internal/db"
@@ -24,7 +25,7 @@ func main() {
 
 	var store gameserver.CharacterStore
 	var npcs []gameserver.NPC
-	if pool, err := db.Connect(ctx, cfg.DatabaseURL); err == nil {
+	if pool, err := db.ConnectWithRetry(ctx, cfg.DatabaseURL, 45*time.Second); err == nil {
 		defer pool.Close()
 		if err := db.ApplySchemaAndSeed(ctx, pool, db.FindSQLDir()); err != nil {
 			log.Printf("schema/seed: %v", err)

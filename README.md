@@ -30,13 +30,21 @@ reference/        # original Java trees
 ## Run
 
 ```bash
+make docker-up             # postgres + login (2107/9015) + game (7778)
+make docker-smoke          # checks login Init, InitLS, game VersionCheck
+```
+
+Or without Docker:
+
+```bash
 docker compose up -d postgres
-# compose already applies sql/001_init.sql + sql/002_seed.sql
-# both servers also run ApplySchemaAndSeed on connect
 make build
 ./bin/loginserver
 ./bin/gameserver
 ```
+
+`make docker-up` also turns off `net.bridge.bridge-nf-call-iptables` when possible.
+Some nested Docker VMs drop container-to-container TCP while that sysctl is `1`.
 
 Defaults match Java:
 
