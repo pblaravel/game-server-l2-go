@@ -34,6 +34,14 @@ func main() {
 			npcs = loaded
 		}
 		log.Printf("game server using PostgreSQL")
+		// Load XML first so PersistDatapack has rows.
+		if err := gameserver.LoadDatapack(gameserver.FindDataDir()); err != nil {
+			log.Printf("datapack: %v", err)
+		} else if err := pool.PersistDatapack(ctx); err != nil {
+			log.Printf("persist datapack: %v", err)
+		} else {
+			log.Printf("persisted %d skill levels and %d class trees", gameserver.SkillCount(), gameserver.ClassCount())
+		}
 	} else {
 		log.Printf("PostgreSQL unavailable (%v), using in-memory store", err)
 		store = gameserver.NewMemoryCharacterStore()

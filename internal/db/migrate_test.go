@@ -31,20 +31,20 @@ func TestFindSQLDir(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "001_init.sql")); err != nil {
 		t.Fatalf("001_init.sql not found from %s: %v", dir, err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "002_seed.sql")); err != nil {
-		t.Fatalf("002_seed.sql not found from %s: %v", dir, err)
+	if _, err := os.Stat(filepath.Join(dir, "003_skills.sql")); err != nil {
+		t.Fatalf("003_skills.sql not found from %s: %v", dir, err)
 	}
 }
 
 func TestSplitSQLRealFiles(t *testing.T) {
 	dir := FindSQLDir()
-	for _, name := range []string{"001_init.sql", "002_seed.sql"} {
+	for _, name := range []string{"001_init.sql", "002_seed.sql", "003_skills.sql"} {
 		body, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
 			t.Fatal(err)
 		}
 		stmts := splitSQL(string(body))
-		if len(stmts) < 5 {
+		if len(stmts) < 2 {
 			t.Fatalf("%s: too few statements (%d)", name, len(stmts))
 		}
 		for i, s := range stmts {

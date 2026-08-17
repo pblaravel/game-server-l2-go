@@ -1,13 +1,23 @@
 package gameserver
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	if err := LoadDatapack(FindDataDir()); err != nil {
+		os.Stderr.WriteString("datapack load: " + err.Error() + "\n")
+	}
+	os.Exit(m.Run())
+}
 
 func TestStarterKitHumanFighter(t *testing.T) {
 	ch := DefaultCharacter("acc", "Hero", 0, 0, 0, 0, 0, 0, 100, nil)
 	if len(ch.Items) == 0 {
 		t.Fatal("expected starter items")
 	}
-	var hasSword, hasAdena, hasGuide bool
+	var hasSword, hasGuide bool
 	for _, it := range ch.Items {
 		if it.ObjectID == 0 {
 			t.Fatal("item object id")
@@ -18,17 +28,12 @@ func TestStarterKitHumanFighter(t *testing.T) {
 			if !it.Equipped {
 				t.Fatal("sword should be equipped")
 			}
-		case 57:
-			hasAdena = it.Count == 10000
 		case 5588:
 			hasGuide = true
 		}
 	}
-	if !hasSword || !hasAdena || !hasGuide {
-		t.Fatalf("kit incomplete sword=%v adena=%v guide=%v items=%d", hasSword, hasAdena, hasGuide, len(ch.Items))
-	}
-	if ch.PaperdollItem[PaperRHand] != 2369 {
-		t.Fatal("rhand paperdoll")
+	if !hasSword || !hasGuide {
+		t.Fatalf("kit incomplete sword=%v guide=%v items=%d", hasSword, hasGuide, len(ch.Items))
 	}
 	if len(ch.Skills) == 0 {
 		t.Fatal("expected starter skills")

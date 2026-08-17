@@ -138,8 +138,34 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		c.Send(ChangeMoveType(p.ObjectID, true))
 	case 0x2F: // RequestMagicSkillUse
 		skillID := r.ReadD()
-		c.Send(MagicSkillUse(p.ObjectID, c.target, skillID, 1, 500, 1000, p.X, p.Y, p.Z))
-		c.Broadcast(MagicSkillUse(p.ObjectID, c.target, skillID, 1, 500, 1000, p.X, p.Y, p.Z))
+		_ = r.ReadD() // ctrlPressed
+		_ = r.ReadC() // shiftPressed
+		var lvl int32
+		for _, sk := range p.Skills {
+			if sk.ID == skillID {
+				lvl = sk.Level
+			}
+		}
+		if lvl == 0 {
+			c.Send(ActionFailed())
+			break
+		}
+		hit, reuse := int32(500), int32(1000)
+		if tpl := GetSkill(skillID, lvl); tpl != nil {
+			if tpl.HitTime > 0 {
+				hit = tpl.HitTime
+			}
+			if tpl.ReuseDelay > 0 {
+				reuse = tpl.ReuseDelay
+			}
+		}
+		target := c.target
+		if target == 0 {
+			target = p.ObjectID
+		}
+		pkt := MagicSkillUse(p.ObjectID, target, skillID, lvl, hit, reuse, p.X, p.Y, p.Z)
+		c.Send(pkt)
+		c.Broadcast(pkt)
 	case 0x30:
 		c.Send(UserInfo(p))
 	case 0x38: // Say2

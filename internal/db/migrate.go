@@ -42,6 +42,7 @@ func ApplySchemaAndSeed(ctx context.Context, pool *Pool, sqlDir string) error {
 	}{
 		{1, "001_init.sql"},
 		{2, "002_seed.sql"},
+		{3, "003_skills.sql"},
 	}
 	for _, f := range files {
 		applied, err := migrationApplied(ctx, pool, f.id)

@@ -147,15 +147,29 @@ var classKits = map[int32]ClassKit{
 }
 
 func ApplyStarterKit(ch *Character, nextItemID func() int32) {
-	kit, ok := classKits[ch.ClassID]
-	if !ok {
-		kit = classKits[0]
+	items := []NewbieItem(nil)
+	if tpl := GetClassTemplate(ch.ClassID); tpl != nil && len(tpl.Items) > 0 {
+		items = tpl.Items
+	} else if kit, ok := classKits[ch.ClassID]; ok {
+		items = kit.Items
+	} else {
+		items = classKits[0].Items
 	}
-	ch.Skills = append([]Skill(nil), kit.Skills...)
+
+	if DatapackLoaded() {
+		ch.Skills = NodesToSkills(AutoGetSkills(ch.ClassID, ch.Level))
+	} else {
+		kit, ok := classKits[ch.ClassID]
+		if !ok {
+			kit = classKits[0]
+		}
+		ch.Skills = append([]Skill(nil), kit.Skills...)
+	}
+
 	ch.Items = ch.Items[:0]
 	slot := int32(0)
 	fallback := int32(0)
-	for _, it := range kit.Items {
+	for _, it := range items {
 		oid := int32(0)
 		if nextItemID != nil {
 			oid = nextItemID()

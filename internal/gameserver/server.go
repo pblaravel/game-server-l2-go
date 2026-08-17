@@ -22,6 +22,11 @@ type Server struct {
 }
 
 func NewServer(cfg config.GameConfig, store CharacterStore) *Server {
+	if !DatapackLoaded() {
+		if err := LoadDatapack(FindDataDir()); err != nil {
+			log.Printf("datapack: %v (using builtin newbie kits)", err)
+		}
+	}
 	w := NewWorld()
 	s := &Server{cfg: cfg, world: w, store: store}
 	s.login = NewLoginServerThread(cfg, w)

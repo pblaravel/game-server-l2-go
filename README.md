@@ -20,6 +20,9 @@ internal/loginserver
 internal/gameserver
 sql/001_init.sql  # PostgreSQL schema (accounts, characters, clans, …)
 sql/002_seed.sql  # Java castle/clanhall/7s/mdt + newbie NPCs/levels
+sql/003_skills.sql  # skill_templates + class_skills tables
+data/xml/skills   # Java SkillTable
+data/xml/classes  # Java PlayerData skill trees + newbie items
 docs/COVERAGE.md  # Java → Go functionality and seed audit
 reference/        # original Java trees
 ```

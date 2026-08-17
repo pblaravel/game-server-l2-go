@@ -28,6 +28,7 @@ Implemented and client-compatible:
 - VersionCheck / AuthLogin via login bridge
 - Char create / delete / select / EnterWorld
 - Starter items, skills, shortcuts (Java `RequestCharacterCreate`)
+- **SkillTable + class skill trees** from `data/xml` (autoGet on create, SkillList, MagicSkillUse timings)
 - Unity `0x02` PlayerMoveDirection / `0xC6` MoveDirection
 - Chat, attack, target, inventory list + reorder, skill list/use
 - UserInfo / CharInfo / NpcInfo / CharSelectInfo / CharSelected
@@ -37,7 +38,8 @@ Implemented and client-compatible:
 
 Java `GameServer` constructor loads these; Go does **not** run them:
 
-- ItemData / NpcData / SkillTable / SkillTree / PlayerData XML
+- ItemData / NpcData XML (skills and class trees **are** loaded)
+- Skill effect execution (`<for>` funcs, buffs, damage formulas)
 - Full Interlude spawn list (`SpawnManager.spawn()`)
 - GeoEngine / pathfinding / zones / doors
 - Quests and `ScriptData`
@@ -67,7 +69,8 @@ under `data/xml/` (not copied into this repo).
 | `mdt_bets.sql` | `sql/002_seed.sql` | yes |
 | `gameservers.sql` (schema only) | none (GS self-registers) | n/a |
 | PlayerLevelData XML | `player_levels` 1–81 | yes |
-| PlayerData class templates | `class_templates` + in-memory kits | yes |
+| PlayerData class templates | `class_templates` + `data/xml/classes` + `class_skills` | yes |
+| SkillTable XML | `data/xml/skills` → `skill_templates` | yes (parsed at GS start, upserted to DB) |
 | NpcData + SpawnManager XML | newbie `npc_templates` / `npc_spawns` | yes (Talking Island + race gates + starter mobs) |
 
 How a zero-state server gets this data:
@@ -77,5 +80,7 @@ How a zero-state server gets this data:
    connect, so a DB created without compose still gets schema + seed.
 3. If PostgreSQL is down, the process uses in-memory stores and the gameserver
    still loads `DefaultNewbieSpawns`.
-4. Character create always grants the class starter kit (items/skills/shortcuts)
-   and persists them to `items` / `character_skills` / `character_shortcuts`.
+4. Character create grants the class starter items and **autoGet skills**
+   (`cost="0"` in the class XML, same as Java `getAvailableAutoGetSkills`).
+   Learn-from-NPC skills (Power Strike, etc.) stay on the class tree until
+   a trainer handler is added.

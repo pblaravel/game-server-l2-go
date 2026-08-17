@@ -335,6 +335,9 @@ func loadSkills(ctx context.Context, q queryExecer, ch *gameserver.Character) er
 			return err
 		}
 		sk.Passive = sk.ID == 194 || sk.ID == 1320 || sk.ID == 1321 || sk.ID == 226
+		if tpl := gameserver.GetSkill(sk.ID, sk.Level); tpl != nil {
+			sk.Passive = tpl.IsPassive()
+		}
 		ch.Skills = append(ch.Skills, sk)
 	}
 	return rows.Err()
@@ -384,6 +387,45 @@ func (r *NpcRepo) ListSpawns(ctx context.Context) ([]gameserver.NPC, error) {
 		out = append(out, n)
 	}
 	return out, rows.Err()
+}
+
+// PersistDatapack writes Java SkillTable + class skill trees into PostgreSQL.
+func (p *Pool) PersistDatapack(ctx context.Context) error {
+	tx, err := p.p.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `TRUNCATE skill_templates, class_skills`); err != nil {
+		return err
+	}
+	skills := gameserver.AllSkills()
+	const batch = 200
+	for i := 0; i < len(skills); i += batch {
+		end := i + batch
+		if end > len(skills) {
+			end = len(skills)
+		}
+		for _, t := range skills[i:end] {
+			if _, err := tx.Exec(ctx, `INSERT INTO skill_templates (
+				skill_id, skill_level, name, operate_type, skill_type, is_magic,
+				mp_consume, hit_time, reuse_delay, cool_time, power, magic_lvl, target_type, cast_range, effect_range)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+				t.ID, t.Level, t.Name, t.OperateType, t.SkillType, t.IsMagic,
+				t.MPConsume, t.HitTime, t.ReuseDelay, t.CoolTime, t.Power, t.MagicLvl, t.TargetType, t.CastRange, t.EffectRange); err != nil {
+				return err
+			}
+		}
+	}
+	for _, cls := range gameserver.AllClassTemplates() {
+		for _, s := range cls.Skills {
+			if _, err := tx.Exec(ctx, `INSERT INTO class_skills (class_id, skill_id, skill_level, cost, min_lvl)
+				VALUES ($1,$2,$3,$4,$5)`, cls.ID, s.ID, s.Level, s.Cost, s.MinLvl); err != nil {
+				return err
+			}
+		}
+	}
+	return tx.Commit(ctx)
 }
 
 func MustConnect(ctx context.Context, url string) *Pool {
