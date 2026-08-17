@@ -30,4 +30,11 @@ func TestApplyEnvOverrides(t *testing.T) {
 	if !gc.PacketHandlerDebug || !gc.PrintReceivedPackets || !gc.PrintSentPackets {
 		t.Fatal("PACKET_LOG should enable packet traces")
 	}
+
+	t.Setenv("ALLOWED_PROTOCOL_VERSIONS", "740")
+	t.Setenv("STRICT_PROTOCOL", "false")
+	ApplyGameEnv(&gc)
+	if len(gc.AllowedProtocolVers) != 1 || gc.AllowedProtocolVers[0] != 740 {
+		t.Fatal(gc.AllowedProtocolVers)
+	}
 }

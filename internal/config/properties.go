@@ -81,3 +81,27 @@ func (p Properties) Bool(key string, def bool) bool {
 		return def
 	}
 }
+
+// ParseIntList parses "737,740,744" into ints.
+func ParseIntList(s string) []int {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	parts := strings.FieldsFunc(s, func(r rune) bool {
+		return r == ',' || r == ';' || r == ' ' || r == '|'
+	})
+	out := make([]int, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		n, err := strconv.Atoi(p)
+		if err != nil {
+			continue
+		}
+		out = append(out, n)
+	}
+	return out
+}

@@ -76,6 +76,10 @@ func (s *Server) Run(ctx context.Context) error {
 			}
 			return err
 		}
+		if tc, ok := conn.(*net.TCPConn); ok {
+			_ = tc.SetNoDelay(true)
+			_ = tc.SetKeepAlive(true)
+		}
 		c := NewGameClient(conn, s)
 		s.mu.Lock()
 		s.clients = append(s.clients, c)
@@ -95,4 +99,3 @@ func (s *Server) Broadcast(payload []byte, except *GameClient) {
 		c.Send(payload)
 	}
 }
-

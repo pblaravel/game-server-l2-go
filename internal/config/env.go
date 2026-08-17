@@ -61,4 +61,12 @@ func ApplyGameEnv(cfg *GameConfig) {
 	if v := os.Getenv("PACKET_HANDLER_DEBUG"); v != "" {
 		cfg.PacketHandlerDebug = envBool(v)
 	}
+	if v := os.Getenv("ALLOWED_PROTOCOL_VERSIONS"); v != "" {
+		if vers := ParseIntList(v); len(vers) > 0 {
+			cfg.AllowedProtocolVers = vers
+		}
+	}
+	if v := os.Getenv("STRICT_PROTOCOL"); v != "" {
+		cfg.StrictProtocol = envBool(v)
+	}
 }

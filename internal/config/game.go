@@ -26,6 +26,7 @@ type GameConfig struct {
 	PacketHandlerDebug   bool
 	PrintReceivedPackets bool
 	PrintSentPackets     bool
+	StrictProtocol       bool
 }
 
 func DefaultGameConfig() GameConfig {
@@ -64,6 +65,12 @@ func LoadGameConfig(paths ...string) (GameConfig, error) {
 	cfg.PacketHandlerDebug = p.Bool("PacketHandlerDebug", cfg.PacketHandlerDebug)
 	cfg.PrintReceivedPackets = p.Bool("logger.print.received-packets", cfg.PrintReceivedPackets)
 	cfg.PrintSentPackets = p.Bool("logger.print.sent-packets", cfg.PrintSentPackets)
+	if v := p.String("AllowedProtocolVersions", p.String("AllowedProtocolVers", "")); v != "" {
+		if vers := ParseIntList(v); len(vers) > 0 {
+			cfg.AllowedProtocolVers = vers
+		}
+	}
+	cfg.StrictProtocol = p.Bool("StrictProtocol", cfg.StrictProtocol)
 	if v := p.String("database.url", ""); v != "" {
 		cfg.DatabaseURL = v
 	} else if v := p.String("URL", ""); v != "" {

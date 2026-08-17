@@ -62,7 +62,9 @@ Default GS blowfish key: `_;v.]05-31!|+-%xT!^[$\0`
 
 ## Game client (default :7778)
 
-Protocol versions: 737, 740, 744, 746.
+Protocol versions: 737, 740, 744, 746 (Unity clients typically send **740**).
+Unknown versions still get `VersionCheck` unless `StrictProtocol=true`.
+Handshake is always logged as `[GAME] … ProtocolVersion` / `[GAME] … sending VersionCheck`.
 
 | State | Opcode | Packet |
 |-------|--------|--------|

@@ -9,16 +9,24 @@ func gsWrite(write func(w *packet.Writer)) []byte {
 }
 
 func VersionCheck(key8 []byte, useCipher bool) []byte {
+	return VersionCheckReply(key8, useCipher, true)
+}
+
+func VersionCheckReply(key8 []byte, useCipher bool, ok bool) []byte {
 	return gsWrite(func(w *packet.Writer) {
 		w.WriteC(0x00)
-		w.WriteC(0x01)
+		if ok {
+			w.WriteC(0x01)
+		} else {
+			w.WriteC(0x00)
+		}
 		w.WriteB(key8)
 		if useCipher {
 			w.WriteD(1)
 		} else {
 			w.WriteD(0)
 		}
-		w.WriteD(1)
+		w.WriteD(0x01)
 	})
 }
 
@@ -666,8 +674,8 @@ func RestartResponse(ok bool) []byte {
 }
 
 const (
-	CharCreateFailed          int32 = 0x00
-	CharCreateNameExists      int32 = 0x02
-	CharCreateTooMany         int32 = 0x03
-	CharCreateIncorrectName   int32 = 0x04
+	CharCreateFailed        int32 = 0x00
+	CharCreateNameExists    int32 = 0x02
+	CharCreateTooMany       int32 = 0x03
+	CharCreateIncorrectName int32 = 0x04
 )

@@ -57,7 +57,8 @@ Defaults match Java:
 Configs: `conf/loginserver/server.properties`, `conf/gameserver/server.properties`.
 
 Game server packet traces are on by default (`PacketHandlerDebug`, `logger.print.received-packets`, `logger.print.sent-packets`).
-Look for `GS RECV` / `GS SEND` / `GS CHANGE` / `GS STATE` in the process log, or `docker compose logs -f gameserver`.
+Look for `GS RECV` / `GS SEND` / `GS CHANGE` / `GS STATE` / `[GAME]` in the process log, or `docker compose logs -f gameserver`.
+The first client packet is `ProtocolVersion` (Unity uses **740**); the server must answer with `VersionCheck` and must not close the TCP socket.
 Set `PACKET_LOG=false` to turn them off.
 
 If PostgreSQL is down, both processes fall back to in-memory stores (dev/tests).

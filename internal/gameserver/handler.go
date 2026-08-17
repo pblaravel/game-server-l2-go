@@ -28,6 +28,8 @@ func (s *Server) handle(c *GameClient, data []byte) {
 			s.onProtocolVersion(c, data)
 		case 0x08:
 			s.onAuthLogin(c, data)
+		default:
+			log.Printf("[GAME] %s unhandled CONNECTED opcode 0x%02X %s (expected ProtocolVersion 0x00)", c.tag(), op, hexPreview(data, 64))
 		}
 	case StateAuthed:
 		switch op {
@@ -205,23 +207,57 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 }
 
 func (s *Server) onProtocolVersion(c *GameClient, data []byte) {
-	r := packet.NewReader(data)
-	r.SkipOpcode()
-	ver := int(r.ReadD())
-	ok := false
-	for _, v := range s.cfg.AllowedProtocolVers {
-		if v == ver {
-			ok = true
-			break
-		}
+	ver := parseProtocolVersion(data)
+	addr := ""
+	if c.conn != nil {
+		addr = c.conn.RemoteAddr().String()
 	}
-	if !ok {
-		c.logChange("protocol %d rejected", ver)
+	allowed := s.protocolAllowed(ver)
+	log.Printf("[GAME] %s ProtocolVersion opcode=0x%02X ver=%d raw=%s allowed=%v list=%v cipher=%v",
+		addr, data[0], ver, hexPreview(data, 64), allowed, s.cfg.AllowedProtocolVers, s.cfg.UseBlowfishCipher)
+
+	key := c.EnableCrypt()
+	if len(key) < 8 {
+		log.Printf("[GAME] %s crypt key missing, closing", addr)
 		c.Close()
 		return
 	}
-	c.logChange("protocol %d accepted cipher=%v", ver, s.cfg.UseBlowfishCipher)
-	c.Send(VersionCheck(c.EnableCrypt()[:8], s.cfg.UseBlowfishCipher))
+	if !allowed && s.cfg.StrictProtocol {
+		log.Printf("[GAME] %s rejecting protocol %d (StrictProtocol), sending VersionCheck fail then close", addr, ver)
+		c.Send(VersionCheckReply(key[:8], s.cfg.UseBlowfishCipher, false))
+		c.Close()
+		return
+	}
+	if !allowed {
+		log.Printf("[GAME] %s protocol %d not in allowed list, accepting anyway (set StrictProtocol=true to reject)", addr, ver)
+	}
+	log.Printf("[GAME] %s sending VersionCheck ok=1 key8=%x", addr, key[:8])
+	c.Send(VersionCheck(key[:8], s.cfg.UseBlowfishCipher))
+}
+
+func parseProtocolVersion(data []byte) int {
+	r := packet.NewReader(data)
+	r.SkipOpcode()
+	switch {
+	case r.Remaining() >= 4:
+		return int(r.ReadD())
+	case r.Remaining() >= 2:
+		return r.ReadH()
+	default:
+		return 0
+	}
+}
+
+func (s *Server) protocolAllowed(ver int) bool {
+	if len(s.cfg.AllowedProtocolVers) == 0 {
+		return true
+	}
+	for _, v := range s.cfg.AllowedProtocolVers {
+		if v == ver {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) onAuthLogin(c *GameClient, data []byte) {
