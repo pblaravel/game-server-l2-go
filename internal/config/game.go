@@ -21,6 +21,7 @@ type GameConfig struct {
 	AllowedPosDesync     float64
 	DatabaseURL          string
 	HexID                []byte
+	HexIDFile            string
 	ServerID             int
 	Developer            bool
 	PacketHandlerDebug   bool
@@ -43,6 +44,7 @@ func DefaultGameConfig() GameConfig {
 		AllowedProtocolVers: []int{737, 740, 744, 746},
 		AllowedPosDesync:    0.5,
 		DatabaseURL:         "postgres://l2unity:l2unity@localhost:5432/l2unity?sslmode=disable",
+		HexIDFile:           defaultHexIDFile,
 	}
 }
 
@@ -77,5 +79,6 @@ func LoadGameConfig(paths ...string) (GameConfig, error) {
 		cfg.DatabaseURL = jdbcToPostgres(v, p.String("Login", p.String("database.jdbc.username", "l2unity")), p.String("Password", p.String("database.jdbc.password", "l2unity")))
 	}
 	ApplyGameEnv(&cfg)
+	applyHexIDFile(&cfg)
 	return cfg, nil
 }

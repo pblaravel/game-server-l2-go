@@ -20,7 +20,8 @@ CMD ["/app/loginserver"]
 FROM debian:bookworm-slim AS gameserver
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir -p /app/var
 COPY --from=build /out/gameserver /app/gameserver
 COPY conf /app/conf
 COPY sql /app/sql

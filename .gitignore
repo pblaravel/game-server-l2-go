@@ -17,3 +17,5 @@ reference/**/gradlew.bat
 reference/**/gradle-wrapper.jar
 .env
 /tmp/
+conf/gameserver/hexid.txt
+conf/hexid.txt

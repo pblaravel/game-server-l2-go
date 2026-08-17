@@ -69,4 +69,13 @@ func ApplyGameEnv(cfg *GameConfig) {
 	if v := os.Getenv("STRICT_PROTOCOL"); v != "" {
 		cfg.StrictProtocol = envBool(v)
 	}
+	if v := os.Getenv("HEXID_FILE"); v != "" {
+		cfg.HexIDFile = v
+	}
+	if v := os.Getenv("SERVER_ID"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.ServerID = n
+			cfg.RequestID = n
+		}
+	}
 }

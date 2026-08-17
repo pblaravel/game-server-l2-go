@@ -55,6 +55,7 @@ Defaults match Java:
 | Game clients | 7778 |
 
 Configs: `conf/loginserver/server.properties`, `conf/gameserver/server.properties`.
+After the first login handshake the gameserver writes `conf/gameserver/hexid.txt` (Docker: `/app/var/hexid.txt`) so later starts reuse the same `gameservers` row instead of inserting a new one.
 
 Game server packet traces are on by default (`PacketHandlerDebug`, `logger.print.received-packets`, `logger.print.sent-packets`).
 Look for `GS RECV` / `GS SEND` / `GS CHANGE` / `GS STATE` / `[GAME]` in the process log, or `docker compose logs -f gameserver`.

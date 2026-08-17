@@ -44,8 +44,13 @@ func NewLoginServerThread(cfg config.GameConfig, world *World) *LoginServerThrea
 	if len(hex) == 0 {
 		hex = make([]byte, 16)
 		_, _ = rand.Read(hex)
+		log.Printf("Generated random hexID; will save to %s after login auth", cfg.HexIDFile)
 	} else {
 		req = cfg.ServerID
+		if req == 0 {
+			req = cfg.RequestID
+		}
+		log.Printf("Using saved hexID from %s (server %d)", cfg.HexIDFile, req)
 	}
 	return &LoginServerThread{
 		cfg:     cfg,
@@ -151,6 +156,15 @@ func (t *LoginServerThread) onAuthResponse(body []byte) {
 	r.SkipOpcode()
 	t.serverID = int(r.ReadC())
 	t.name = r.ReadS()
+	path := t.cfg.HexIDFile
+	if path == "" {
+		path = "conf/gameserver/hexid.txt"
+	}
+	if err := config.SaveHexID(path, t.serverID, t.hexID); err != nil {
+		log.Printf("Failed to save hex ID to %s: %v", path, err)
+	} else {
+		log.Printf("Saved hex ID to %s (server %d). Next start will reuse gameservers row.", path, t.serverID)
+	}
 	log.Printf("Registered as server: [%d] %s.", t.serverID, t.name)
 	ss := serverStatusPacket([][2]int32{
 		{1, 0}, // STATUS AUTO

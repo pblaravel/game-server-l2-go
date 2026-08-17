@@ -15,14 +15,14 @@ import (
 
 // GameServerThread matches Java GameServerThread.
 type GameServerThread struct {
-	conn       net.Conn
-	ip         string
-	ls         *LoginServerController
-	gsc        *GameServerController
-	priv       *rsa.PrivateKey
-	blowfish   *crypt.NewCrypt
-	state      GameServerState
-	gsi        *GameServerInfo
+	conn     net.Conn
+	ip       string
+	ls       *LoginServerController
+	gsc      *GameServerController
+	priv     *rsa.PrivateKey
+	blowfish *crypt.NewCrypt
+	state    GameServerState
+	gsi      *GameServerInfo
 
 	mu       sync.Mutex
 	accounts map[string]struct{}
@@ -135,6 +135,8 @@ func (t *GameServerThread) handleRegProcess(pkt GameServerAuth) bool {
 			return true
 		}
 		if t.ls.Config().AcceptNewGameServer && pkt.AcceptAlternate {
+			log.Printf("GameServer id %d hex mismatch (have %s, got %s), registering with a new id",
+				pkt.ID, HexToString(gsi.HexID()), HexToString(pkt.HexID))
 			gsi = NewGameServerInfo(int(pkt.ID), pkt.HexID, t)
 			if t.gsc.RegisterWithFirstAvailableId(gsi) {
 				t.AttachGameServerInfo(gsi, pkt.Port, pkt.Host, int(pkt.MaxPlayer))
@@ -148,6 +150,7 @@ func (t *GameServerThread) handleRegProcess(pkt GameServerAuth) bool {
 		return false
 	}
 	if t.ls.Config().AcceptNewGameServer {
+		log.Printf("Registering new GameServer id %d hex %s host %s", pkt.ID, HexToString(pkt.HexID), pkt.Host)
 		gsi = NewGameServerInfo(int(pkt.ID), pkt.HexID, t)
 		if t.gsc.Register(int(pkt.ID), gsi) {
 			t.AttachGameServerInfo(gsi, pkt.Port, pkt.Host, int(pkt.MaxPlayer))
