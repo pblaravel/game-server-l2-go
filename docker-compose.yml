@@ -46,7 +46,7 @@ services:
       DATABASE_URL: postgres://l2unity:l2unity@postgres:5432/l2unity?sslmode=disable
       LOGIN_HOST: loginserver
       LOGIN_PORT: "9015"
-      GAMESERVER_HOSTNAME: "*"
+      GAMESERVER_HOSTNAME: "127.0.0.1"
       PACKET_LOG: "true"
       HEXID_FILE: /app/var/hexid.txt
     volumes:
