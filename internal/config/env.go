@@ -3,7 +3,17 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 )
+
+func envBool(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
 
 // ApplyEnv overlays Docker/k8s environment variables on top of .properties.
 func ApplyLoginEnv(cfg *LoginConfig) {
@@ -41,5 +51,14 @@ func ApplyGameEnv(cfg *GameConfig) {
 	}
 	if v := os.Getenv("GAMESERVER_HOSTNAME"); v != "" {
 		cfg.Hostname = v
+	}
+	if v := os.Getenv("PACKET_LOG"); v != "" {
+		on := envBool(v)
+		cfg.PacketHandlerDebug = on
+		cfg.PrintReceivedPackets = on
+		cfg.PrintSentPackets = on
+	}
+	if v := os.Getenv("PACKET_HANDLER_DEBUG"); v != "" {
+		cfg.PacketHandlerDebug = envBool(v)
 	}
 }

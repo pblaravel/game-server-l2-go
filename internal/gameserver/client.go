@@ -3,6 +3,7 @@ package gameserver
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -44,26 +45,51 @@ func NewGameClient(conn net.Conn, srv *Server) *GameClient {
 }
 
 func (c *GameClient) EnableCrypt() []byte { return c.key }
-func (c *GameClient) SetState(s ClientState) { c.state = s }
-func (c *GameClient) State() ClientState     { return c.state }
-func (c *GameClient) SetAccountName(v string) { c.account = v }
-func (c *GameClient) AccountName() string     { return c.account }
+
+func (c *GameClient) SetState(s ClientState) {
+	old := c.state
+	c.state = s
+	if old != s && c.logTraceEnabled() {
+		log.Printf("GS STATE %s %s -> %s", c.tag(), old, s)
+	}
+}
+
+func (c *GameClient) State() ClientState { return c.state }
+func (c *GameClient) SetAccountName(v string) {
+	c.account = v
+	c.logChange("account=%q", v)
+}
+func (c *GameClient) AccountName() string         { return c.account }
 func (c *GameClient) SetSessionKey(k session.Key) { c.sess = k }
 func (c *GameClient) SessionKey() session.Key     { return c.sess }
 func (c *GameClient) SetSlots(s []*Character)     { c.slots = s }
 func (c *GameClient) Slots() []*Character         { return c.slots }
-func (c *GameClient) SetPlayer(p *Character)      { c.player = p }
-func (c *GameClient) Player() *Character          { return c.player }
-func (c *GameClient) ctx() context.Context        { return context.Background() }
+func (c *GameClient) SetPlayer(p *Character) {
+	c.player = p
+	if p != nil {
+		c.logChange("selected char name=%q oid=%d class=%d pos=(%d,%d,%d)", p.Name, p.ObjectID, p.ClassID, p.X, p.Y, p.Z)
+	}
+}
+func (c *GameClient) Player() *Character   { return c.player }
+func (c *GameClient) ctx() context.Context { return context.Background() }
 
 func (c *GameClient) Serve() {
+	if c.logTraceEnabled() {
+		log.Printf("GS ACCEPT %s", c.tag())
+	}
 	defer c.Close()
 	for {
 		body, err := packet.ReadFrame(c.conn)
 		if err != nil {
+			if c.logTraceEnabled() && err != io.EOF {
+				log.Printf("GS DISCONNECT %s err=%v", c.tag(), err)
+			} else if c.logTraceEnabled() {
+				log.Printf("GS DISCONNECT %s", c.tag())
+			}
 			return
 		}
 		c.crypt.Decrypt(body)
+		c.logRecv(body)
 		c.server.handle(c, body)
 	}
 }
@@ -75,6 +101,7 @@ func (c *GameClient) Send(payload []byte) {
 		return
 	}
 	dup := bytes.Clone(payload)
+	c.logSend(payload)
 	c.crypt.Encrypt(dup)
 	if err := packet.WriteFrame(c.conn, dup); err != nil {
 		log.Printf("send: %v", err)
@@ -89,6 +116,13 @@ func (c *GameClient) Close() {
 	}
 	c.closed = true
 	c.mu.Unlock()
+	if c.logTraceEnabled() {
+		who := c.account
+		if c.player != nil {
+			who = fmt.Sprintf("%s/%s#%d", c.account, c.player.Name, c.player.ObjectID)
+		}
+		log.Printf("GS CLOSE %s %s", hostOnly(c.conn.RemoteAddr()), who)
+	}
 	if c.player != nil {
 		c.server.world.RemovePlayer(c.player.ObjectID)
 		c.server.login.SendLogout(c.account)
@@ -112,5 +146,3 @@ func hostOnly(addr net.Addr) string {
 	}
 	return host
 }
-
-var _ = io.EOF

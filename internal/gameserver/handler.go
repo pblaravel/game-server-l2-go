@@ -74,6 +74,7 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		y := r.ReadD()
 		z := r.ReadD()
 		p.X, p.Y, p.Z = x, y, z
+		c.logChange("pos=(%d,%d,%d) heading=%d via MoveBackwardToLocation", x, y, z, p.Heading)
 		c.Broadcast(StopMove(p.ObjectID, x, y, z, p.Heading))
 	case 0x02: // PlayerMoveDirection (Unity)
 		need := r.ReadC() == 1
@@ -91,6 +92,7 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		p.MoveDirY = int32(dirY * 100)
 		p.VerticalVel = int32(vert * 100)
 		p.LastPacketTS = ts
+		c.logChange("pos=(%d,%d,%d) heading=%d dir=(%d,%d) vert=%d via PlayerMoveDirection", x, y, z, heading, p.MoveDirX, p.MoveDirY, p.VerticalVel)
 		pkt := MoveDirection(p.ObjectID, p.MoveDirY, p.MoveDirX, p.VerticalVel, x, y, z, ts)
 		c.Send(pkt)
 		c.Broadcast(pkt)
@@ -100,11 +102,13 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 	case 0x04: // Action
 		target := r.ReadD()
 		c.target = target
+		c.logChange("target=%d via Action", target)
 		c.Send(MyTargetSelected(target, 0))
 		c.Send(TargetSelected(p.ObjectID, target, p.X, p.Y, p.Z))
 	case 0x05: // RequestTarget
 		target := r.ReadD()
 		c.target = target
+		c.logChange("target=%d via RequestTarget", target)
 		c.Send(MyTargetSelected(target, 0))
 	case 0x09:
 		s.onLogout(c)
@@ -113,6 +117,7 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		ox, oy, oz := r.ReadD(), r.ReadD(), r.ReadD()
 		_ = r.ReadC()
 		c.target = target
+		c.logChange("attack target=%d from=(%d,%d,%d)", target, ox, oy, oz)
 		c.Send(Attack(p.ObjectID, target, 10, 0, ox, oy, oz))
 		c.Broadcast(Attack(p.ObjectID, target, 10, 0, ox, oy, oz))
 	case 0x0F:
@@ -163,6 +168,7 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		if target == 0 {
 			target = p.ObjectID
 		}
+		c.logChange("skill=%d lvl=%d hit=%d reuse=%d target=%d pos=(%d,%d,%d)", skillID, lvl, hit, reuse, target, p.X, p.Y, p.Z)
 		pkt := MagicSkillUse(p.ObjectID, target, skillID, lvl, hit, reuse, p.X, p.Y, p.Z)
 		c.Send(pkt)
 		c.Broadcast(pkt)
@@ -174,6 +180,7 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		if sayType == 2 && r.Remaining() > 0 {
 			_ = r.ReadS()
 		}
+		c.logChange("say type=%d text=%q", sayType, text)
 		msg := CreatureSay(p.ObjectID, sayType, p.Name, text)
 		c.Send(msg)
 		s.Broadcast(msg, nil)
@@ -187,11 +194,12 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		x, y, z := r.ReadD(), r.ReadD(), r.ReadD()
 		heading := r.ReadD()
 		p.X, p.Y, p.Z, p.Heading = x, y, z, heading
+		c.logChange("pos=(%d,%d,%d) heading=%d via ValidatePosition", x, y, z, heading)
 	case 0x6D:
 		c.Send(TeleportToLocation(p.ObjectID, p.X, p.Y, p.Z))
 	default:
-		if s.cfg.PacketHandlerDebug {
-			log.Printf("unhandled ingame opcode 0x%02X", op)
+		if s.cfg.PacketHandlerDebug || s.cfg.PrintReceivedPackets || s.cfg.Developer {
+			log.Printf("GS UNHANDLED %s opcode 0x%02X %s", c.tag(), op, hexPreview(data, 32))
 		}
 	}
 }
@@ -208,9 +216,11 @@ func (s *Server) onProtocolVersion(c *GameClient, data []byte) {
 		}
 	}
 	if !ok {
+		c.logChange("protocol %d rejected", ver)
 		c.Close()
 		return
 	}
+	c.logChange("protocol %d accepted cipher=%v", ver, s.cfg.UseBlowfishCipher)
 	c.Send(VersionCheck(c.EnableCrypt()[:8], s.cfg.UseBlowfishCipher))
 }
 
@@ -286,6 +296,7 @@ func (s *Server) onCharCreate(c *GameClient, data []byte) {
 		c.Send(CharCreateFail(CharCreateFailed))
 		return
 	}
+	c.logChange("created char name=%q oid=%d class=%d race=%d sex=%d spawn=(%d,%d,%d)", ch.Name, ch.ObjectID, ch.ClassID, ch.Race, ch.Sex, ch.X, ch.Y, ch.Z)
 	c.Send(CharCreateOk())
 	slots, _ := s.store.ListByAccount(c.ctx(), c.AccountName())
 	c.SetSlots(slots)
@@ -336,6 +347,7 @@ func (s *Server) onEnterWorld(c *GameClient) {
 	p.LastAccess = time.Now().UnixMilli()
 	s.world.AddPlayer(p)
 	c.SetState(StateInGame)
+	c.logChange("enter world name=%q oid=%d class=%d pos=(%d,%d,%d) players=%d npcs=%d", p.Name, p.ObjectID, p.ClassID, p.X, p.Y, p.Z, len(s.world.Players()), len(s.world.NPCs()))
 	c.Send(UserInfo(p))
 	c.Send(ItemList(p.Items, false))
 	c.Send(SkillList(p.Skills))

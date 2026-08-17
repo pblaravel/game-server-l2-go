@@ -21,9 +21,13 @@ func TestApplyEnvOverrides(t *testing.T) {
 		t.Fatal(lc)
 	}
 
+	t.Setenv("PACKET_LOG", "true")
 	gc := DefaultGameConfig()
 	ApplyGameEnv(&gc)
 	if gc.LoginHost != "loginserver" || gc.LoginPort != 9015 {
 		t.Fatal(gc)
+	}
+	if !gc.PacketHandlerDebug || !gc.PrintReceivedPackets || !gc.PrintSentPackets {
+		t.Fatal("PACKET_LOG should enable packet traces")
 	}
 }

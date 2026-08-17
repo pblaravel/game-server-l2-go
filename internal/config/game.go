@@ -2,28 +2,30 @@ package config
 
 // GameConfig mirrors Java Config / conf/server.properties used by the gameserver.
 type GameConfig struct {
-	Hostname              string
-	GameserverPort        int
-	LoginHost             string
-	LoginPort             int
-	RequestID             int
-	AcceptAlternateID     bool
-	ReserveHostOnLogin    bool
-	MaximumOnlineUsers    int
-	UseBlowfishCipher     bool
-	ServerGMOnly          bool
-	ServerListClock       bool
-	ServerListBracket     bool
-	ServerListAge         int
-	ServerListTestServer  bool
-	ServerListPvPServer   bool
-	AllowedProtocolVers   []int
-	AllowedPosDesync      float64
-	DatabaseURL           string
-	HexID                 []byte
-	ServerID              int
-	Developer             bool
-	PacketHandlerDebug    bool
+	Hostname             string
+	GameserverPort       int
+	LoginHost            string
+	LoginPort            int
+	RequestID            int
+	AcceptAlternateID    bool
+	ReserveHostOnLogin   bool
+	MaximumOnlineUsers   int
+	UseBlowfishCipher    bool
+	ServerGMOnly         bool
+	ServerListClock      bool
+	ServerListBracket    bool
+	ServerListAge        int
+	ServerListTestServer bool
+	ServerListPvPServer  bool
+	AllowedProtocolVers  []int
+	AllowedPosDesync     float64
+	DatabaseURL          string
+	HexID                []byte
+	ServerID             int
+	Developer            bool
+	PacketHandlerDebug   bool
+	PrintReceivedPackets bool
+	PrintSentPackets     bool
 }
 
 func DefaultGameConfig() GameConfig {
@@ -60,6 +62,8 @@ func LoadGameConfig(paths ...string) (GameConfig, error) {
 	cfg.ServerGMOnly = p.Bool("ServerGMOnly", cfg.ServerGMOnly)
 	cfg.Developer = p.Bool("Developer", cfg.Developer)
 	cfg.PacketHandlerDebug = p.Bool("PacketHandlerDebug", cfg.PacketHandlerDebug)
+	cfg.PrintReceivedPackets = p.Bool("logger.print.received-packets", cfg.PrintReceivedPackets)
+	cfg.PrintSentPackets = p.Bool("logger.print.sent-packets", cfg.PrintSentPackets)
 	if v := p.String("database.url", ""); v != "" {
 		cfg.DatabaseURL = v
 	} else if v := p.String("URL", ""); v != "" {

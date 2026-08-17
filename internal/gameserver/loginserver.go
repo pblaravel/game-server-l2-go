@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"fmt"
 	"io"
 	"log"
 	"math/big"
@@ -24,17 +25,17 @@ type LoginServerThread struct {
 	cfg   config.GameConfig
 	world *World
 
-	mu      sync.Mutex
-	clients map[string]*GameClient
-	bf      *crypt.NewCrypt
-	conn    net.Conn
-	hexID   []byte
-	reqID   int
-	maxP    int
-	name    string
+	mu       sync.Mutex
+	clients  map[string]*GameClient
+	bf       *crypt.NewCrypt
+	conn     net.Conn
+	hexID    []byte
+	reqID    int
+	maxP     int
+	name     string
 	serverID int
-	typ     int
-	stopped bool
+	typ      int
+	stopped  bool
 }
 
 func NewLoginServerThread(cfg config.GameConfig, world *World) *LoginServerThread {
@@ -97,6 +98,7 @@ func (t *LoginServerThread) connectOnce() error {
 		if len(body) == 0 {
 			continue
 		}
+		t.logLSIn(body)
 		switch body[0] {
 		case 0x00:
 			if err := t.onInitLS(body, bfKey); err != nil {
@@ -240,7 +242,7 @@ func (t *LoginServerThread) SetServerType(typ int) {
 	_ = t.send(serverStatusPacket([][2]int32{{1, int32(typ)}}))
 }
 
-func (t *LoginServerThread) GetServerType() int { return t.typ }
+func (t *LoginServerThread) GetServerType() int    { return t.typ }
 func (t *LoginServerThread) GetServerName() string { return t.name }
 func (t *LoginServerThread) GetServerID() int      { return t.serverID }
 
@@ -250,10 +252,36 @@ func (t *LoginServerThread) send(payload []byte) error {
 	if t.conn == nil {
 		return io.ErrClosedPipe
 	}
+	t.logLSOut(payload)
 	dup := bytes.Clone(payload)
 	crypt.AppendChecksum(dup)
 	t.bf.Crypt(dup, 0, len(dup))
 	return packet.WriteFrame(t.conn, dup)
+}
+
+func (t *LoginServerThread) logLSIn(body []byte) {
+	if !(t.cfg.PacketHandlerDebug || t.cfg.PrintReceivedPackets || t.cfg.Developer) || len(body) == 0 {
+		return
+	}
+	op := body[0]
+	log.Printf("GS<-LS RECV %s 0x%02X %s", lsInOpcodeName(op), op, hexPreview(body, 32))
+}
+
+func (t *LoginServerThread) logLSOut(body []byte) {
+	if !(t.cfg.PacketHandlerDebug || t.cfg.PrintSentPackets || t.cfg.Developer) || len(body) == 0 {
+		return
+	}
+	op := body[0]
+	extra := ""
+	switch op {
+	case 0x01:
+		extra = fmt.Sprintf(" id=%d", t.reqID)
+	case 0x03:
+		extra = " logout"
+	case 0x05:
+		extra = " auth"
+	}
+	log.Printf("GS->LS SEND %s 0x%02X%s %s", lsOutOpcodeName(op), op, extra, hexPreview(body, 32))
 }
 
 func blowFishKeyPacket(enc []byte) []byte {

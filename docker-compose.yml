@@ -47,6 +47,7 @@ services:
       LOGIN_HOST: loginserver
       LOGIN_PORT: "9015"
       GAMESERVER_HOSTNAME: "*"
+      PACKET_LOG: "true"
     ports:
       - "7778:7778"
     depends_on:
