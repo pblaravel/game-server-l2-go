@@ -1,7 +1,8 @@
 # Java → Go coverage
 
 Reference trees: `reference/l2-unity-loginserver` (75 `.java`),
-`reference/l2-unity-gameserver` (2301 `.java`).
+`reference/l2-unity-gameserver` (2301 `.java`, ~339k lines).
+Go implementation: 51 non-test files, ~10.3k lines.
 
 The **wire API is the contract**: opcodes, packet layouts, Blowfish/RSA/GameCrypt,
 session keys, ports. Gameplay logic is ported from the Java sources wherever the
@@ -12,6 +13,8 @@ the remaining systems.
 Packet layouts are checked by `internal/gameserver/layout_test.go`, which walks
 every server packet with the field sequence transcribed from its Java class.
 Formulas are checked against the Java values in `internal/gameserver/stats_test.go`.
+The client opcode table was compared against Java `network/GamePacketHandler.java`,
+and the leftover startup checklist against the `GameServer.java` constructor.
 
 ## Login server — complete
 
@@ -29,6 +32,10 @@ Matches Java `LoginClientThread` + `GameServerListener` / `GameServerThread`:
 | `logger.print.received/sent-packets` | yes |
 | Shutdown disconnects clients and gameservers | yes |
 | Accounts + gameservers in PostgreSQL | yes |
+
+Password handling is the Java behaviour: the client sends hash bytes, the server
+stores `Base64(bytes)` and compares strings
+(`ClientPacketHandler.java` → `internal/loginserver/packets.go`).
 
 `GGAuth`, `ChangeAccessLevel` and `RequestTempBan` are unimplemented in Java too.
 Java login has **no SQL seed rows**; `gameservers` is filled when a GS registers.
@@ -81,6 +88,12 @@ subsystems built on top of it:
 
 - `ItemData` / `NpcData` XML: item and NPC stats fall back to the values needed by
   the starter content (`internal/gameserver/stats.go`, `NPC.NpcDefaults`)
+- Remaining XML loaders Java starts in `GameServer.java`: `SkillTreeData`,
+  `HennaData`, `MultisellData`, `RecipeData`, `ArmorSetData`, `FishData`,
+  `SpellbookData`, `SoulCrystalData`, `AugmentationData`, `SummonItemData`,
+  `DoorData`, `TeleportData`, `RestartPointData`, `NewbieBuffData`,
+  `StaticObjectData`, `WalkerRouteData`, `ObserverGroupData`,
+  `AnnouncementData`, `AdminData`, `ScriptData`, `BoatData`
 - `GeoEngine`, pathfinding, zones, doors, `StaticObjectData`
 - Quests and `ScriptData` (343 quest files plus the monster AI script tree)
 - Buy lists, multisell, recipes, warehouse, trade, private stores
@@ -89,6 +102,16 @@ subsystems built on top of it:
 - Community board, petitions, admin commands
 - Boats, fishing, cursed weapons, augmentation, cubics, henna, macros, subclasses
 - Debuff and status effects on NPCs (monsters have no effect list yet)
+- Handler registries (`handler/` item/chat/user-command/target handlers);
+  Go still inlines most of this in `handler.go` / `handler_ingame.go`
+- `ThreadPool`, `HtmCache`, `CrestCache`, `GlobalMemo`, `PlayerInfoTable`,
+  server-crash tracking in `server_memo`
+
+`internal/config/game.go` covers the settings this port needs; Java `Config`
+exposes several hundred more (`RATE_*`, `ENCHANT_*`, `OLY_*`, `SEVEN_SIGNS_*`,
+`GEODATA_PATH`, `INVENTORY_*`, `AUTO_LOOT`, …). About 30 Java tables
+(community board, auctions, manor, petitions, olympiad fights, cursed
+weapons, …) are still absent from the Go schema.
 
 Tables for the unported systems exist in `sql/001_init.sql` so a later datapack
 load can persist state, but there is no runtime manager behind them.
