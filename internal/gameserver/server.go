@@ -49,6 +49,7 @@ func (s *Server) SeedWorld(npcs []NPC) {
 		if cp.CurHP == 0 {
 			cp.CurHP = cp.MaxHP
 		}
+		cp.NpcDefaults()
 		s.world.AddNPC(&cp)
 	}
 }
@@ -58,6 +59,7 @@ func (s *Server) World() *World             { return s.world }
 
 func (s *Server) Run(ctx context.Context) error {
 	go s.login.Run()
+	s.RunTaskManagers(ctx)
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", s.cfg.GameserverPort))
 	if err != nil {
 		return fmt.Errorf("gameserver listen: %w", err)

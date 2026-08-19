@@ -17,12 +17,50 @@ type ClassSkillNode struct {
 	MinLvl int32
 }
 
+// ClassTemplate is Java PlayerTemplate: base stats, per-level tables and the
+// class skill tree from data/xml/classes.
 type ClassTemplate struct {
 	ID      int32
 	Name    string
 	BaseLvl int32
 	Items   []NewbieItem
 	Skills  []ClassSkillNode // this class only; parents are merged in ClassSkills()
+
+	Fists                                      int32
+	STR, CON, DEX, INT, WIT, MEN               int32
+	PAtk, PDef, MAtk, MDef                     int32
+	RunSpd, WalkSpd, SwimSpd                   int32
+	Radius, RadiusFemale, Height, HeightFemale float64
+	HPTable, MPTable, CPTable                  []float64
+	HPRegenTable, MPRegenTable, CPRegenTable   []float64
+}
+
+func tableAt(t []float64, level int32) float64 {
+	if len(t) == 0 {
+		return 0
+	}
+	i := int(level) - 1
+	if i < 0 {
+		i = 0
+	}
+	if i >= len(t) {
+		i = len(t) - 1
+	}
+	return t[i]
+}
+
+// MaxHPAt / MaxMPAt / MaxCPAt are Java PlayerTemplate.getBaseHpMax(level) etc.
+func (t *ClassTemplate) MaxHPAt(level int32) float64 { return tableAt(t.HPTable, level) }
+func (t *ClassTemplate) MaxMPAt(level int32) float64 { return tableAt(t.MPTable, level) }
+func (t *ClassTemplate) MaxCPAt(level int32) float64 { return tableAt(t.CPTable, level) }
+func (t *ClassTemplate) HPRegenAt(level int32) float64 {
+	return tableAt(t.HPRegenTable, level)
+}
+func (t *ClassTemplate) MPRegenAt(level int32) float64 {
+	return tableAt(t.MPRegenTable, level)
+}
+func (t *ClassTemplate) CPRegenAt(level int32) float64 {
+	return tableAt(t.CPRegenTable, level)
 }
 
 var (
@@ -144,6 +182,55 @@ type xmlClassSet struct {
 	BaseLvl string `xml:"baseLvl,attr"`
 	Name    string `xml:"name,attr"`
 	Val     string `xml:"val,attr"`
+
+	Fists        string `xml:"fists,attr"`
+	STR          string `xml:"str,attr"`
+	CON          string `xml:"con,attr"`
+	DEX          string `xml:"dex,attr"`
+	INT          string `xml:"int,attr"`
+	WIT          string `xml:"wit,attr"`
+	MEN          string `xml:"men,attr"`
+	PAtk         string `xml:"pAtk,attr"`
+	PDef         string `xml:"pDef,attr"`
+	MAtk         string `xml:"mAtk,attr"`
+	MDef         string `xml:"mDef,attr"`
+	RunSpd       string `xml:"runSpd,attr"`
+	WalkSpd      string `xml:"walkSpd,attr"`
+	SwimSpd      string `xml:"swimSpd,attr"`
+	Radius       string `xml:"radius,attr"`
+	RadiusFemale string `xml:"radiusFemale,attr"`
+	Height       string `xml:"height,attr"`
+	HeightFemale string `xml:"heightFemale,attr"`
+	HPTable      string `xml:"hpTable,attr"`
+	MPTable      string `xml:"mpTable,attr"`
+	CPTable      string `xml:"cpTable,attr"`
+	HPRegenTable string `xml:"hpRegenTable,attr"`
+	MPRegenTable string `xml:"mpRegenTable,attr"`
+	CPRegenTable string `xml:"cpRegenTable,attr"`
+}
+
+func setI32(dst *int32, raw string) {
+	if raw != "" {
+		*dst = parseI32(raw)
+	}
+}
+
+func setF64(dst *float64, raw string) {
+	if raw != "" {
+		*dst = parseF64(raw)
+	}
+}
+
+func setTable(dst *[]float64, raw string) {
+	if raw == "" {
+		return
+	}
+	parts := strings.Split(raw, ";")
+	out := make([]float64, 0, len(parts))
+	for _, p := range parts {
+		out = append(out, parseF64(strings.TrimSpace(p)))
+	}
+	*dst = out
 }
 
 type xmlItem struct {
@@ -201,9 +288,31 @@ func parseClass(c xmlClass) *ClassTemplate {
 		if s.ID != "" {
 			tpl.ID = parseI32(s.ID)
 		}
-		if s.BaseLvl != "" {
-			tpl.BaseLvl = parseI32(s.BaseLvl)
-		}
+		setI32(&tpl.BaseLvl, s.BaseLvl)
+		setI32(&tpl.Fists, s.Fists)
+		setI32(&tpl.STR, s.STR)
+		setI32(&tpl.CON, s.CON)
+		setI32(&tpl.DEX, s.DEX)
+		setI32(&tpl.INT, s.INT)
+		setI32(&tpl.WIT, s.WIT)
+		setI32(&tpl.MEN, s.MEN)
+		setI32(&tpl.PAtk, s.PAtk)
+		setI32(&tpl.PDef, s.PDef)
+		setI32(&tpl.MAtk, s.MAtk)
+		setI32(&tpl.MDef, s.MDef)
+		setI32(&tpl.RunSpd, s.RunSpd)
+		setI32(&tpl.WalkSpd, s.WalkSpd)
+		setI32(&tpl.SwimSpd, s.SwimSpd)
+		setF64(&tpl.Radius, s.Radius)
+		setF64(&tpl.RadiusFemale, s.RadiusFemale)
+		setF64(&tpl.Height, s.Height)
+		setF64(&tpl.HeightFemale, s.HeightFemale)
+		setTable(&tpl.HPTable, s.HPTable)
+		setTable(&tpl.MPTable, s.MPTable)
+		setTable(&tpl.CPTable, s.CPTable)
+		setTable(&tpl.HPRegenTable, s.HPRegenTable)
+		setTable(&tpl.MPRegenTable, s.MPRegenTable)
+		setTable(&tpl.CPRegenTable, s.CPRegenTable)
 	}
 	for _, it := range c.Items {
 		eq := true

@@ -283,6 +283,7 @@ func (w *World) LoadDefaultSpawns() {
 	for _, n := range DefaultNewbieSpawns {
 		cp := n
 		cp.ObjectID = w.NextID()
+		cp.NpcDefaults()
 		w.AddNPC(&cp)
 	}
 }

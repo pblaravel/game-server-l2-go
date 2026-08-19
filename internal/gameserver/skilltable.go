@@ -10,8 +10,26 @@ import (
 	"sync"
 )
 
-// SkillTemplate is the Java SkillTable row used by SkillList / MagicSkillUse.
-// Effects (<for>) are not executed; operateType/timings/mp are enough for the wire API.
+// FuncTemplate is a Java skills/basefuncs Func: a stat modifier of a skill effect.
+type FuncTemplate struct {
+	Op    string // add, sub, mul, set
+	Stat  string
+	Value float64
+}
+
+// EffectTemplate is a Java skills/AbstractEffect entry of a <for> block.
+type EffectTemplate struct {
+	Name       string
+	Value      float64
+	Duration   int32 // seconds, Java "time"
+	Count      int32
+	StackType  string
+	StackOrder int32
+	Funcs      []FuncTemplate
+}
+
+// SkillTemplate is the Java SkillTable row (skills/L2Skill) including the <for>
+// block, so effects and stat modifiers can be executed.
 type SkillTemplate struct {
 	ID          int32
 	Level       int32
@@ -28,6 +46,8 @@ type SkillTemplate struct {
 	TargetType  string
 	CastRange   int32
 	EffectRange int32
+	Effects     []EffectTemplate
+	Funcs       []FuncTemplate
 }
 
 func (t SkillTemplate) IsPassive() bool {
@@ -82,15 +102,42 @@ type xmlSkillList struct {
 }
 
 type xmlSkill struct {
-	ID         int32     `xml:"id,attr"`
-	Levels     int       `xml:"levels,attr"`
+	ID        int32    `xml:"id,attr"`
+	Levels    int      `xml:"levels,attr"`
+	Name      string   `xml:"name,attr"`
+	Enchant1  int      `xml:"enchantLevels1,attr"`
+	Enchant2  int      `xml:"enchantLevels2,attr"`
+	Tables    []xmlTbl `xml:"table"`
+	Sets      []xmlSet `xml:"set"`
+	Enchant1s []xmlSet `xml:"enchant1"`
+	Enchant2s []xmlSet `xml:"enchant2"`
+	For       xmlFor   `xml:"for"`
+}
+
+type xmlFor struct {
+	Effects []xmlEffect `xml:"effect"`
+	Adds    []xmlFunc   `xml:"add"`
+	Subs    []xmlFunc   `xml:"sub"`
+	Muls    []xmlFunc   `xml:"mul"`
+	Sets    []xmlFunc   `xml:"set"`
+}
+
+type xmlEffect struct {
 	Name       string    `xml:"name,attr"`
-	Enchant1   int       `xml:"enchantLevels1,attr"`
-	Enchant2   int       `xml:"enchantLevels2,attr"`
-	Tables     []xmlTbl  `xml:"table"`
-	Sets       []xmlSet  `xml:"set"`
-	Enchant1s  []xmlSet  `xml:"enchant1"`
-	Enchant2s  []xmlSet  `xml:"enchant2"`
+	Val        string    `xml:"val,attr"`
+	Time       string    `xml:"time,attr"`
+	Count      string    `xml:"count,attr"`
+	StackType  string    `xml:"stackType,attr"`
+	StackOrder string    `xml:"stackOrder,attr"`
+	Adds       []xmlFunc `xml:"add"`
+	Subs       []xmlFunc `xml:"sub"`
+	Muls       []xmlFunc `xml:"mul"`
+	Sets       []xmlFunc `xml:"set"`
+}
+
+type xmlFunc struct {
+	Stat string `xml:"stat,attr"`
+	Val  string `xml:"val,attr"`
 }
 
 type xmlTbl struct {
@@ -167,6 +214,8 @@ func expandSkill(sk xmlSkill, out map[int32]SkillTemplate, maxLvl map[int32]int3
 			TargetType:  vals["target"],
 			CastRange:   parseI32(vals["castRange"]),
 			EffectRange: parseI32(vals["effectRange"]),
+			Effects:     parseEffects(sk.For, tables, tableIdx),
+			Funcs:       parseFuncs(sk.For.Adds, sk.For.Subs, sk.For.Muls, sk.For.Sets, tables, tableIdx),
 		}
 		out[skillHash(tpl.ID, tpl.Level)] = tpl
 		if tpl.Level < 99 && tpl.Level > maxLvl[tpl.ID] {
@@ -183,6 +232,47 @@ func expandSkill(sk xmlSkill, out map[int32]SkillTemplate, maxLvl map[int32]int3
 	for i := 0; i < sk.Enchant2; i++ {
 		apply(int32(141+i), sk.Levels, sk.Enchant2s)
 	}
+}
+
+// parseEffects reads the <for> block of Java DocumentSkill.
+func parseEffects(f xmlFor, tables map[string][]string, level int) []EffectTemplate {
+	if len(f.Effects) == 0 {
+		return nil
+	}
+	out := make([]EffectTemplate, 0, len(f.Effects))
+	for _, e := range f.Effects {
+		out = append(out, EffectTemplate{
+			Name:       e.Name,
+			Value:      parseF64(resolveTable(e.Val, tables, level)),
+			Duration:   parseI32(resolveTable(e.Time, tables, level)),
+			Count:      parseI32(resolveTable(e.Count, tables, level)),
+			StackType:  e.StackType,
+			StackOrder: parseI32(resolveTable(e.StackOrder, tables, level)),
+			Funcs:      parseFuncs(e.Adds, e.Subs, e.Muls, e.Sets, tables, level),
+		})
+	}
+	return out
+}
+
+func parseFuncs(adds, subs, muls, sets []xmlFunc, tables map[string][]string, level int) []FuncTemplate {
+	var out []FuncTemplate
+	add := func(op string, list []xmlFunc) {
+		for _, f := range list {
+			if f.Stat == "" {
+				continue
+			}
+			out = append(out, FuncTemplate{
+				Op:    op,
+				Stat:  f.Stat,
+				Value: parseF64(resolveTable(f.Val, tables, level)),
+			})
+		}
+	}
+	add("add", adds)
+	add("sub", subs)
+	add("mul", muls)
+	add("set", sets)
+	return out
 }
 
 func resolveTable(val string, tables map[string][]string, level int) string {

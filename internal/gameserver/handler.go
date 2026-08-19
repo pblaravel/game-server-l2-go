@@ -72,12 +72,7 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 	r.SkipOpcode()
 	switch op {
 	case 0x01: // MoveBackwardToLocation
-		x := r.ReadD()
-		y := r.ReadD()
-		z := r.ReadD()
-		p.X, p.Y, p.Z = x, y, z
-		c.logChange("pos=(%d,%d,%d) heading=%d via MoveBackwardToLocation", x, y, z, p.Heading)
-		c.Broadcast(StopMove(p.ObjectID, x, y, z, p.Heading))
+		s.onMoveBackwardToLocation(c, r)
 	case 0x02: // PlayerMoveDirection (Unity)
 		need := r.ReadC() == 1
 		dirY := r.ReadF64()
@@ -102,103 +97,57 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 			// ActionFailed only when blocked; here movement is accepted.
 		}
 	case 0x04: // Action
-		target := r.ReadD()
-		c.target = target
-		c.logChange("target=%d via Action", target)
-		c.Send(MyTargetSelected(target, 0))
-		c.Send(TargetSelected(p.ObjectID, target, p.X, p.Y, p.Z))
+		s.onAction(c, r)
 	case 0x05: // RequestTarget
 		target := r.ReadD()
 		c.target = target
 		c.logChange("target=%d via RequestTarget", target)
 		c.Send(MyTargetSelected(target, 0))
-	case 0x09:
+	case 0x09: // Logout
 		s.onLogout(c)
 	case 0x0A: // AttackRequest
-		target := r.ReadD()
-		ox, oy, oz := r.ReadD(), r.ReadD(), r.ReadD()
-		_ = r.ReadC()
-		c.target = target
-		c.logChange("attack target=%d from=(%d,%d,%d)", target, ox, oy, oz)
-		c.Send(Attack(p.ObjectID, target, 10, 0, ox, oy, oz))
-		c.Broadcast(Attack(p.ObjectID, target, 10, 0, ox, oy, oz))
-	case 0x0F:
+		s.onAttackRequest(c, r)
+	case 0x0F: // RequestItemList
 		c.Send(ItemList(p.Items, true))
 	case 0x10: // RequestInventoryUpdateOrder
-		n := int(r.ReadD())
-		if n > 125 {
-			n = 125
-		}
-		for i := 0; i < n; i++ {
-			oid := r.ReadD()
-			order := r.ReadD()
-			for j := range p.Items {
-				if p.Items[j].ObjectID == oid {
-					p.Items[j].Slot = order
-				}
-			}
-		}
-		c.Send(ItemList(p.Items, false))
-	case 0x11, 0x12, 0x14:
-		c.Send(ItemList(p.Items, false))
-	case 0x1C:
-		c.Send(ChangeMoveType(p.ObjectID, true))
+		s.onInventoryUpdateOrder(c, r)
+	case 0x11: // RequestUnEquipItem
+		s.onUnEquipItem(c, r)
+	case 0x12: // RequestDropItem
+		s.onDropItem(c, r)
+	case 0x14: // UseItem
+		s.onUseItem(c, r)
+	case 0x1A, 0x23, 0x2E, 0x34, 0x3E: // Java DummyPacket
+	case 0x1B: // RequestSocialAction
+		s.onSocialAction(c, r)
+	case 0x1C: // RequestChangeMoveType
+		s.onChangeMoveType(c)
+	case 0x1E: // RequestSellItem
+		s.onSellItem(c, r)
+	case 0x1F: // RequestBuyItem
+		s.onBuyItem(c, r)
 	case 0x2F: // RequestMagicSkillUse
-		skillID := r.ReadD()
-		_ = r.ReadD() // ctrlPressed
-		_ = r.ReadC() // shiftPressed
-		var lvl int32
-		for _, sk := range p.Skills {
-			if sk.ID == skillID {
-				lvl = sk.Level
-			}
-		}
-		if lvl == 0 {
-			c.Send(ActionFailed())
-			break
-		}
-		hit, reuse := int32(500), int32(1000)
-		if tpl := GetSkill(skillID, lvl); tpl != nil {
-			if tpl.HitTime > 0 {
-				hit = tpl.HitTime
-			}
-			if tpl.ReuseDelay > 0 {
-				reuse = tpl.ReuseDelay
-			}
-		}
-		target := c.target
-		if target == 0 {
-			target = p.ObjectID
-		}
-		c.logChange("skill=%d lvl=%d hit=%d reuse=%d target=%d pos=(%d,%d,%d)", skillID, lvl, hit, reuse, target, p.X, p.Y, p.Z)
-		pkt := MagicSkillUse(p.ObjectID, target, skillID, lvl, hit, reuse, p.X, p.Y, p.Z)
-		c.Send(pkt)
-		c.Broadcast(pkt)
-	case 0x30:
-		c.Send(UserInfo(p))
+		s.onMagicSkillUse(c, r)
+	case 0x30: // Appearing
+		s.onAppearing(c)
+	case 0x37: // RequestTargetCancel
+		s.onTargetCancel(c, r)
 	case 0x38: // Say2
-		text := r.ReadS()
-		sayType := r.ReadD()
-		if sayType == 2 && r.Remaining() > 0 {
-			_ = r.ReadS()
-		}
-		c.logChange("say type=%d text=%q", sayType, text)
-		msg := CreatureSay(p.ObjectID, sayType, p.Name, text)
-		c.Send(msg)
-		s.Broadcast(msg, nil)
-	case 0x3F:
+		s.onSay2(c, r)
+	case 0x3F: // RequestSkillList
 		c.Send(SkillList(p.Skills))
-	case 0x45:
-		action := r.ReadD()
-		c.Send(SocialAction(p.ObjectID, action))
-		c.Broadcast(SocialAction(p.ObjectID, action))
+	case 0x45: // RequestActionUse
+		s.onActionUse(c, r)
+	case 0x46: // RequestRestart
+		s.onRestart(c)
 	case 0x48: // ValidatePosition
-		x, y, z := r.ReadD(), r.ReadD(), r.ReadD()
-		heading := r.ReadD()
-		p.X, p.Y, p.Z, p.Heading = x, y, z, heading
-		c.logChange("pos=(%d,%d,%d) heading=%d via ValidatePosition", x, y, z, heading)
-	case 0x6D:
-		c.Send(TeleportToLocation(p.ObjectID, p.X, p.Y, p.Z))
+		s.onValidatePosition(c, r)
+	case 0x6B: // RequestAcquireSkillInfo
+		s.onAcquireSkillInfo(c, r)
+	case 0x6C: // RequestAcquireSkill
+		s.onAcquireSkill(c, r)
+	case 0x6D: // RequestRestartPoint
+		s.onRestartPoint(c, r)
 	default:
 		if s.cfg.PacketHandlerDebug || s.cfg.PrintReceivedPackets || s.cfg.Developer {
 			log.Printf("GS UNHANDLED %s opcode 0x%02X %s", c.tag(), op, hexPreview(data, 32))
@@ -381,6 +330,7 @@ func (s *Server) onEnterWorld(c *GameClient) {
 	}
 	p.Online = true
 	p.LastAccess = time.Now().UnixMilli()
+	RecalcStats(p)
 	s.world.AddPlayer(p)
 	c.SetState(StateInGame)
 	c.logChange("enter world name=%q oid=%d class=%d pos=(%d,%d,%d) players=%d npcs=%d", p.Name, p.ObjectID, p.ClassID, p.X, p.Y, p.Z, len(s.world.Players()), len(s.world.NPCs()))
@@ -388,16 +338,25 @@ func (s *Server) onEnterWorld(c *GameClient) {
 	c.Send(ItemList(p.Items, false))
 	c.Send(SkillList(p.Skills))
 	c.Send(ShortCutInit(p.Shortcuts))
+	c.Send(StatusUpdate(p.ObjectID, [][2]int32{
+		{StatusCurHP, int32(p.CurHP)}, {StatusMaxHP, p.MaxHP},
+		{StatusCurMP, int32(p.CurMP)}, {StatusMaxMP, p.MaxMP},
+		{StatusCurCP, int32(p.CurCP)}, {StatusMaxCP, p.MaxCP},
+		{StatusCurLoad, p.CurrentWeight}, {StatusMaxLoad, p.WeightLimit},
+	}))
 	for _, other := range s.world.Players() {
 		if other.ObjectID == p.ObjectID {
 			continue
 		}
 		c.Send(CharInfo(other))
-		// notify others
 	}
 	for _, n := range s.world.NPCs() {
 		c.Send(NpcInfo(n))
 	}
+	if p.Dead {
+		c.Send(Die(p.ObjectID, false, false, false, false, false))
+	}
 	s.Broadcast(CharInfo(p), c)
+	c.Send(ActionFailed())
 	_ = s.store.Update(c.ctx(), p)
 }

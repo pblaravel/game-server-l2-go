@@ -1,6 +1,7 @@
 package gameserver
 
 import (
+	"math"
 	"sync"
 	"time"
 )
@@ -102,6 +103,122 @@ type Character struct {
 	VerticalVel                  int32
 	LastPacketTS                 int64
 	Online                       bool
+
+	// Broadcast state from Java Player / Appearance / CreatureStatus.
+	PvPFlag          int32
+	RecomLeft        int32
+	RecomHave        int32
+	Nobless          bool
+	Hero             bool
+	Sitting          bool
+	Running          bool
+	InCombat         bool
+	Dead             bool
+	Invisible        bool
+	PrivateStore     int32
+	MountType        int32
+	EnchantEffect    int32
+	Team             int32
+	AbnormalEffect   int32
+	Cubics           []int32
+	InPartyMatchRoom bool
+	ClanCrestID      int32
+	ClanCrestLargeID int32
+	AllyID           int32
+	AllyCrestID      int32
+	PledgeClass      int32
+	PledgeType       int32
+	CursedWeaponLvl  int32
+	Fishing          bool
+	FishX            int32
+	FishY            int32
+	FishZ            int32
+	Flying           bool
+	SwimSpeed        int32
+	CollisionRadius  float64
+	CollisionHeight  float64
+	MoveMultiplier   float64
+	AttackMultiplier float64
+	AttackRange      int32
+	AugmentRHand     int32
+	AugmentLHand     int32
+	CurrentWeight    int32
+	WeightLimit      int32
+	DestX            int32
+	DestY            int32
+	DestZ            int32
+	Effects          []ActiveEffect
+}
+
+// AlikeDead is Java Creature.isAlikeDead (dead or fake death).
+func (c *Character) AlikeDead() bool { return c.Dead }
+
+// ApplyRuntimeDefaults sets the state Java derives at runtime instead of storing
+// it in `characters`: stance, speed multipliers, collision box and attack range.
+func (c *Character) ApplyRuntimeDefaults() {
+	c.Running = true
+	c.Dead = c.CurHP <= 0
+	if c.MoveMultiplier == 0 {
+		c.MoveMultiplier = 1
+	}
+	if c.AttackMultiplier == 0 {
+		c.AttackMultiplier = 1
+	}
+	if c.SwimSpeed == 0 {
+		c.SwimSpeed = 50
+	}
+	if c.AttackRange == 0 {
+		c.AttackRange = 40
+	}
+	if c.InventoryLimit == 0 {
+		c.InventoryLimit = 80
+	}
+	radius, height := CollisionFor(c.ClassID, c.Sex)
+	if c.CollisionRadius == 0 {
+		c.CollisionRadius = radius
+	}
+	if c.CollisionHeight == 0 {
+		c.CollisionHeight = height
+	}
+}
+
+// headingTo is Java MoveData heading: atan2 scaled to the 16-bit client heading.
+func headingTo(fromX, fromY, toX, toY int32) int32 {
+	dx := float64(toX - fromX)
+	dy := float64(toY - fromY)
+	if dx == 0 && dy == 0 {
+		return 0
+	}
+	heading := int32(math.Atan2(-dy, -dx) * 10430.378350470453)
+	return heading + 32768
+}
+
+// Distance2D / Distance3D are Java WorldObject helpers used by range checks.
+func Distance2D(x1, y1, x2, y2 int32) float64 {
+	dx := float64(x2 - x1)
+	dy := float64(y2 - y1)
+	return math.Sqrt(dx*dx + dy*dy)
+}
+
+func Distance3D(x1, y1, z1, x2, y2, z2 int32) float64 {
+	dx := float64(x2 - x1)
+	dy := float64(y2 - y1)
+	dz := float64(z2 - z1)
+	return math.Sqrt(dx*dx + dy*dy + dz*dz)
+}
+
+// CollisionFor mirrors Java PlayerTemplate radius/height (female variants).
+func CollisionFor(classID, sex int32) (float64, float64) {
+	if tpl := GetClassTemplate(classID); tpl != nil && tpl.Radius > 0 {
+		if sex != 0 && tpl.RadiusFemale > 0 {
+			return tpl.RadiusFemale, tpl.HeightFemale
+		}
+		return tpl.Radius, tpl.Height
+	}
+	if sex != 0 {
+		return 8, 23.5
+	}
+	return 9, 23
 }
 
 type Skill struct {
@@ -112,30 +229,131 @@ type Skill struct {
 }
 
 // Shortcut matches Java com.shnok.javaserver.gameserver.model.Shortcut.
-// Type: 0 NONE, 1 ITEM, 2 SKILL, 3 ACTION, 4 MACRO, 5 RECIPE.
 type Shortcut struct {
-	Slot          int32
-	Page          int32
-	Type          int32
-	ID            int32
-	Level         int32
-	CharacterType int32
+	Slot             int32
+	Page             int32
+	Type             int32
+	ID               int32
+	Level            int32
+	CharacterType    int32
+	SharedReuseGroup int32
 }
 
+// ShortcutType ordinals from Java enums.ShortcutType.
+const (
+	ShortcutNone int32 = iota
+	ShortcutItem
+	ShortcutSkill
+	ShortcutAction
+	ShortcutMacro
+	ShortcutRecipe
+)
+
 type NPC struct {
-	ObjectID int32
-	NPCID    int32
-	Name     string
-	Title    string
-	X, Y, Z  int32
-	Heading  int32
-	Level    int32
-	MaxHP    int32
-	CurHP    int32
-	MaxMP    int32
-	CurMP    int32
+	ObjectID     int32
+	NPCID        int32
+	Name         string
+	Title        string
+	X, Y, Z      int32
+	SpawnX       int32
+	SpawnY       int32
+	SpawnZ       int32
+	Heading      int32
+	Level        int32
+	MaxHP        int32
+	CurHP        int32
+	MaxMP        int32
+	CurMP        int32
 	IsAttackable bool
+
+	// Broadcast state from Java AbstractNpcInfo.NpcInfo.
+	MAtkSpd          int32
+	PAtkSpd          int32
+	RunSpeed         int32
+	WalkSpeed        int32
+	CollisionRadius  float64
+	CollisionHeight  float64
+	MoveMultiplier   float64
+	AttackMultiplier float64
+	RHand            int32
+	Chest            int32
+	LHand            int32
+	Running          bool
+	InCombat         bool
+	Dead             bool
+	AbnormalEffect   int32
+	ClanID           int32
+	ClanCrest        int32
+	AllyID           int32
+	AllyCrest        int32
+	MoveType         int32
+	EnchantEffect    int32
+	Flying           bool
+	AttackRange      int32
+	PAtk             int32
+	PDef             int32
+	MAtk             int32
+	MDef             int32
+	AggroRange       int32
+	Exp              int64
+	SP               int32
 }
+
+// NpcDefaults fills the template values Java reads from NpcData when the XML
+// datapack is absent, so NpcInfo never broadcasts zeroed speeds or collision.
+func (n *NPC) NpcDefaults() {
+	if n.MAtkSpd == 0 {
+		n.MAtkSpd = 333
+	}
+	if n.PAtkSpd == 0 {
+		n.PAtkSpd = 300
+	}
+	if n.RunSpeed == 0 {
+		n.RunSpeed = 120
+	}
+	if n.WalkSpeed == 0 {
+		n.WalkSpeed = 80
+	}
+	if n.CollisionRadius == 0 {
+		n.CollisionRadius = 8
+	}
+	if n.CollisionHeight == 0 {
+		n.CollisionHeight = 22
+	}
+	if n.MoveMultiplier == 0 {
+		n.MoveMultiplier = 1
+	}
+	if n.AttackMultiplier == 0 {
+		n.AttackMultiplier = 1
+	}
+	if n.AttackRange == 0 {
+		n.AttackRange = 40
+	}
+	if n.SpawnX == 0 && n.SpawnY == 0 && n.SpawnZ == 0 {
+		n.SpawnX, n.SpawnY, n.SpawnZ = n.X, n.Y, n.Z
+	}
+	if n.MaxMP == 0 {
+		n.MaxMP = n.MaxHP / 2
+		n.CurMP = n.MaxMP
+	}
+	// NpcData XML holds the real combat stats; scale them off the level instead.
+	if n.PAtk == 0 {
+		n.PAtk = 8 + n.Level*3
+	}
+	if n.PDef == 0 {
+		n.PDef = 40 + n.Level*4
+	}
+	if n.MAtk == 0 {
+		n.MAtk = 6 + n.Level*2
+	}
+	if n.MDef == 0 {
+		n.MDef = 20 + n.Level*3
+	}
+	n.Running = true
+}
+
+// AlikeDead is Java Creature.isAlikeDead.
+func (n *NPC) AlikeDead() bool { return n.Dead || n.CurHP <= 0 }
 
 type World struct {
 	mu        sync.RWMutex
@@ -221,6 +439,12 @@ func (w *World) AddNPC(n *NPC) {
 	w.objects[n.ObjectID] = n
 }
 
+func (w *World) GetNPC(id int32) *NPC {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.npcs[id]
+}
+
 func (w *World) NPCs() []*NPC {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
@@ -276,10 +500,15 @@ func DefaultCharacter(account, name string, classID, race, sex, hair, color, fac
 		Accuracy: 30, Evasion: 30, Crit: 40, RunSpeed: 120, WalkSpeed: 80,
 		NameColor: 0xFFFFFF, TitleColor: 0xFFFF77, InventoryLimit: 80,
 	}
+	ch.ApplyRuntimeDefaults()
 	if nextItemID == nil {
 		n := objectID + 1000
 		nextItemID = func() int32 { n++; return n }
 	}
 	ApplyStarterKit(ch, nextItemID)
+	RecalcStats(ch)
+	ch.CurHP = float64(ch.MaxHP)
+	ch.CurMP = float64(ch.MaxMP)
+	ch.CurCP = float64(ch.MaxCP)
 	return ch
 }
