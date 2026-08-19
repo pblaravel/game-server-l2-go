@@ -1,10 +1,17 @@
 # Java → Go coverage
 
-Reference trees: `reference/l2-unity-loginserver`, `reference/l2-unity-gameserver`.
+Reference trees: `reference/l2-unity-loginserver` (75 `.java`),
+`reference/l2-unity-gameserver` (2301 `.java`).
 
 The **wire API is the contract**: opcodes, packet layouts, Blowfish/RSA/GameCrypt,
-session keys, ports. Gameplay systems that Java loads from XML/geodata are not a
-line-by-line port of the ~2300-file aCis tree.
+session keys, ports. Gameplay logic is ported from the Java sources wherever the
+data it needs is available; the XML/geodata datapack is **not vendored**
+(`reference/l2-unity-gameserver/gameserver/data/README.md`), which is what limits
+the remaining systems.
+
+Packet layouts are checked by `internal/gameserver/layout_test.go`, which walks
+every server packet with the field sequence transcribed from its Java class.
+Formulas are checked against the Java values in `internal/gameserver/stats_test.go`.
 
 ## Login server — complete
 
@@ -17,48 +24,79 @@ Matches Java `LoginClientThread` + `GameServerListener` / `GameServerThread`:
 | ShowLicense skip of login-pair check | yes (Java quirk kept) |
 | GS BlowFishKey RSA-512 NoPadding, AuthRequest, AuthResponse | yes |
 | PlayerInGame / Logout / PlayerAuth / Kick / ServerStatus / ReplyCharacters | yes |
+| Idle disconnect on `server.connection.timeout.ms` | yes |
+| Bad checksum keeps the connection (Java behaviour) | yes |
+| `logger.print.received/sent-packets` | yes |
+| Shutdown disconnects clients and gameservers | yes |
 | Accounts + gameservers in PostgreSQL | yes |
 
-Java login has **no SQL seed rows**. `gameservers` is filled when a GS registers.
+`GGAuth`, `ChangeAccessLevel` and `RequestTempBan` are unimplemented in Java too.
+Java login has **no SQL seed rows**; `gameservers` is filled when a GS registers.
 
-## Game server — protocol core
+## Game server — protocol
 
-Implemented and client-compatible:
+Client opcodes follow Java `network/GamePacketHandler`: protocol version, auth,
+character create/delete/select/restore, enter world, movement (`0x01` legacy and
+`0x02` Unity), action and attack, target select and cancel, item list and reorder,
+equip/unequip/drop/use, social actions (`0x1B`), move type (`0x1C`), skill use
+(`0x2F`), skill list, action use (`0x45`: sit/stand, walk/run), restart (`0x46`),
+validate position, skill learning (`0x6B`/`0x6C`), respawn (`0x6D`) and the Java
+`DummyPacket` no-ops.
 
-- VersionCheck / AuthLogin via login bridge
-- Char create / delete / select / EnterWorld
-- Starter items, skills, shortcuts (Java `RequestCharacterCreate`)
-- **SkillTable + class skill trees** from `data/xml` (autoGet on create, SkillList, MagicSkillUse timings)
-- Unity `0x02` PlayerMoveDirection / `0xC6` MoveDirection
-- Chat, attack, target, inventory list + reorder, skill list/use
-- UserInfo / CharInfo / NpcInfo / CharSelectInfo / CharSelected
-- Newbie-zone NPC + mob spawns so EnterWorld is not empty
+Server packets implemented with the Java field order: `VersionCheck`, `CharInfo`,
+`UserInfo`, `NpcInfo`, `CharSelectInfo`, `CharSelected`, `CharCreate*`,
+`CharDelete*`, `ItemList`, `SkillList`, `ShortCutInit`, `ShortCutRegister`,
+`ActionFailed`, `ServerClose`, `LeaveWorld`, `MoveToLocation`, `MoveDirection`,
+`StopMove`, `ValidateLocation`, `ChangeMoveType`, `ChangeWaitType`, `Attack`,
+`Die`, `Revive`, `StatusUpdate`, `TargetSelected`, `MyTargetSelected`,
+`DeleteObject`, `TeleportToLocation`, `SocialAction`, `CreatureSay`,
+`SystemMessage` (with typed parameters), `MagicSkillUse`, `MagicSkillLaunched`,
+`MagicSkillCanceled`, `SetupGauge`, `AcquireSkillList/Info/Done`,
+`RestartResponse`, `AuthLoginFail`.
 
-## Game server — not ported (Java XML/datapack)
+The GS↔LS bridge sends the full Java `ServerStatus` block (status, clock,
+brackets, age limit, test server, PvP server, max players).
 
-Java `GameServer` constructor loads these; Go does **not** run them:
+## Game server — gameplay
 
-- ItemData / NpcData XML (skills and class trees **are** loaded)
-- Skill effect execution (`<for>` funcs, buffs, damage formulas)
-- Full Interlude spawn list (`SpawnManager.spawn()`)
-- GeoEngine / pathfinding / zones / doors
-- Quests and `ScriptData`
-- Castle siege, clan hall, manor runtime
-- Seven Signs / Festival of Darkness runtime
-- Olympiad / heroes
-- Clans, allies, wars, crests
-- BuyList / multisell / recipes / warehouse / trade / party
+| System | Java source | Status |
+|--------|-------------|--------|
+| Stat engine (HP/MP/CP, regen, PAtk/PDef/MAtk/MDef, accuracy, evasion, crit, attack/cast speed, run speed, weight limit, collision) | `Formulas`, `CreatureStatus`, `PlayerStatus`, `skills/funcs` | ported over the class XML tables |
+| Melee combat (hit/miss, critical, position and damage formulas, attack pacing, CP before HP) | `Formulas`, `model/actor/attack` | ported |
+| Exp/SP rewards, level difference decay, level up, auto-granted skills | `Monster.calculateExpAndSp`, `Player.addExpAndSp` | ported |
+| Death, respawn to the nearest town, revive restore | `Player.doDie`, `RequestRestartPoint` | ported (town list stands in for `RestartPointData`) |
+| Skill casting (MP cost, reuse, cast time, target and range checks) | `CreatureCast`, `L2Skill` | ported |
+| Skill effects and stat modifiers from the `<for>` blocks, stack type/order rules | `AbstractEffect`, `EffectList`, `skills/basefuncs` | ported for heal, mana heal, physical, magical and buff skills |
+| Monster AI (aggro range, chase, retaliation, chase abandon) | `model/actor/ai/type/AttackableAI` | ported |
+| NPC respawn | `Spawn.doRespawn` | ported (fixed delay; per-spawn delays live in the XML) |
+| Inventory (equip/unequip, two handed, drop, weight) | `Inventory`, `PcInventory` | ported for the items the server can hand out |
+| Skill learning from the class tree | `PlayerData`, `RequestAcquireSkill` | ported |
+| Task managers (HP/MP/CP regen, effect expiry, PvP flag, combat stance, aggro scan) | `taskmanager/` | ported |
+| SkillTable + class skill trees | `SkillTable`, `PlayerData` | ported from `data/xml` |
+
+## Game server — still not ported
+
+These need the ~100 MB datapack (item/NPC XML, geodata, quests, buy lists) or the
+subsystems built on top of it:
+
+- `ItemData` / `NpcData` XML: item and NPC stats fall back to the values needed by
+  the starter content (`internal/gameserver/stats.go`, `NPC.NpcDefaults`)
+- `GeoEngine`, pathfinding, zones, doors, `StaticObjectData`
+- Quests and `ScriptData` (343 quest files plus the monster AI script tree)
+- Buy lists, multisell, recipes, warehouse, trade, private stores
+- Clans, allies, wars, crests, party and command channel
+- Castle siege, clan hall, manor, Seven Signs, Festival, Olympiad, heroes
 - Community board, petitions, admin commands
-- Boats, fishing, cursed weapons, augmentation
-- AI scripts and task managers (decay, PvP flag, water, …)
+- Boats, fishing, cursed weapons, augmentation, cubics, henna, macros, subclasses
+- Debuff and status effects on NPCs (monsters have no effect list yet)
 
-Those tables exist in `sql/001_init.sql` so a later datapack load can persist
-state, but there is no runtime manager behind them.
+Tables for the unported systems exist in `sql/001_init.sql` so a later datapack
+load can persist state, but there is no runtime manager behind them.
 
 ## Seed data on a blank start
 
 Java SQL `INSERT`s exist only in five files. Almost all world content is XML
-under `data/xml/` (not copied into this repo).
+under `data/xml/` (only skills and classes are vendored here).
 
 | Java source | Go seed | Applied on empty DB |
 |-------------|---------|---------------------|
@@ -69,8 +107,8 @@ under `data/xml/` (not copied into this repo).
 | `mdt_bets.sql` | `sql/002_seed.sql` | yes |
 | `gameservers.sql` (schema only) | none (GS self-registers) | n/a |
 | PlayerLevelData XML | `player_levels` 1–81 | yes |
-| PlayerData class templates | `class_templates` + `data/xml/classes` + `class_skills` | yes |
-| SkillTable XML | `data/xml/skills` → `skill_templates` | yes (parsed at GS start, upserted to DB) |
+| PlayerData class templates | `class_templates` + `data/xml/classes` + `class_skills` | yes (stats, HP/MP/CP and regen tables parsed at start) |
+| SkillTable XML | `data/xml/skills` → `skill_templates` | yes (effects and funcs parsed too) |
 | NpcData + SpawnManager XML | newbie `npc_templates` / `npc_spawns` | yes (Talking Island + race gates + starter mobs) |
 
 How a zero-state server gets this data:
@@ -82,5 +120,5 @@ How a zero-state server gets this data:
    still loads `DefaultNewbieSpawns`.
 4. Character create grants the class starter items and **autoGet skills**
    (`cost="0"` in the class XML, same as Java `getAvailableAutoGetSkills`).
-   Learn-from-NPC skills (Power Strike, etc.) stay on the class tree until
-   a trainer handler is added.
+   Learn-from-NPC skills are offered through `AcquireSkillList` once the player
+   reaches their `minLvl` and can pay the SP cost.

@@ -13,7 +13,7 @@ type GameConfig struct {
 	UseBlowfishCipher    bool
 	ServerGMOnly         bool
 	ServerListClock      bool
-	ServerListBracket    bool
+	ServerListBrackets   bool
 	ServerListAge        int
 	ServerListTestServer bool
 	ServerListPvPServer  bool
@@ -43,6 +43,7 @@ func DefaultGameConfig() GameConfig {
 		UseBlowfishCipher:   true,
 		AllowedProtocolVers: []int{737, 740, 744, 746},
 		AllowedPosDesync:    0.5,
+		ServerListPvPServer: true,
 		DatabaseURL:         "postgres://l2unity:l2unity@localhost:5432/l2unity?sslmode=disable",
 		HexIDFile:           defaultHexIDFile,
 	}
@@ -63,6 +64,13 @@ func LoadGameConfig(paths ...string) (GameConfig, error) {
 	cfg.MaximumOnlineUsers = p.Int("MaximumOnlineUsers", cfg.MaximumOnlineUsers)
 	cfg.UseBlowfishCipher = p.Bool("UseBlowfishCipher", cfg.UseBlowfishCipher)
 	cfg.ServerGMOnly = p.Bool("ServerGMOnly", cfg.ServerGMOnly)
+	// Java Config: ServerListBrackets / ServerListClock / ServerListAgeLimit /
+	// TestServer / PvpServer.
+	cfg.ServerListBrackets = p.Bool("ServerListBrackets", cfg.ServerListBrackets)
+	cfg.ServerListClock = p.Bool("ServerListClock", cfg.ServerListClock)
+	cfg.ServerListAge = p.Int("ServerListAgeLimit", cfg.ServerListAge)
+	cfg.ServerListTestServer = p.Bool("TestServer", cfg.ServerListTestServer)
+	cfg.ServerListPvPServer = p.Bool("PvpServer", cfg.ServerListPvPServer)
 	cfg.Developer = p.Bool("Developer", cfg.Developer)
 	cfg.PacketHandlerDebug = p.Bool("PacketHandlerDebug", cfg.PacketHandlerDebug)
 	cfg.PrintReceivedPackets = p.Bool("logger.print.received-packets", cfg.PrintReceivedPackets)
