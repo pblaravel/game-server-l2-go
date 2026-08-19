@@ -56,16 +56,16 @@ func NewLoginClient(conn net.Conn, ls *LoginServerController, gsc *GameServerCon
 	}
 }
 
-func (c *LoginClient) Username() string          { return c.username }
-func (c *LoginClient) AccessLevel() int          { return c.accessLevel }
-func (c *LoginClient) LastGameserver() int       { return c.lastGS }
-func (c *LoginClient) SessionKey() session.Key   { return c.sessionKey }
-func (c *LoginClient) ConnectionIP() string      { return c.ip }
-func (c *LoginClient) SetUsername(v string)      { c.username = v }
-func (c *LoginClient) SetAccessLevel(v int)      { c.accessLevel = v }
-func (c *LoginClient) SetLastGameserver(v int)   { c.lastGS = v }
+func (c *LoginClient) Username() string            { return c.username }
+func (c *LoginClient) AccessLevel() int            { return c.accessLevel }
+func (c *LoginClient) LastGameserver() int         { return c.lastGS }
+func (c *LoginClient) SessionKey() session.Key     { return c.sessionKey }
+func (c *LoginClient) ConnectionIP() string        { return c.ip }
+func (c *LoginClient) SetUsername(v string)        { c.username = v }
+func (c *LoginClient) SetAccessLevel(v int)        { c.accessLevel = v }
+func (c *LoginClient) SetLastGameserver(v int)     { c.lastGS = v }
 func (c *LoginClient) SetSessionKey(k session.Key) { c.sessionKey = k }
-func (c *LoginClient) SetJoinedGS(v bool)        { c.joinedGS = v }
+func (c *LoginClient) SetJoinedGS(v bool)          { c.joinedGS = v }
 func (c *LoginClient) SetLoginClientState(s LoginClientState) {
 	c.state = s
 }
@@ -97,6 +97,8 @@ func (c *LoginClient) Serve() {
 	if err := c.Send(InitPacket(c.pair.ScrambledModulus, c.blowfish, c.sessionID)); err != nil {
 		return
 	}
+	c.lastEcho = time.Now()
+	go c.watchTimeout()
 	for {
 		body, err := packet.ReadFrame(c.conn)
 		if err != nil {
@@ -106,18 +108,42 @@ func (c *LoginClient) Serve() {
 	}
 }
 
+// watchTimeout is the Java ClientPacketHandler timer on
+// server.connection.timeout.ms: a client that stops sending Ping is dropped.
+func (c *LoginClient) watchTimeout() {
+	timeout := time.Duration(c.ls.Config().ConnectionTimeoutMS) * time.Millisecond
+	if timeout <= 0 {
+		return
+	}
+	t := time.NewTicker(timeout / 2)
+	defer t.Stop()
+	for range t.C {
+		if c.Closed() {
+			return
+		}
+		if time.Since(c.LastEcho()) >= timeout {
+			log.Printf("[CLIENT] %s connection timed out after %s", c.ip, timeout)
+			c.Disconnect()
+			return
+		}
+	}
+}
+
 func (c *LoginClient) handle(data []byte) {
+	// Java logs and keeps the connection when decryption or the checksum fails.
 	if err := c.crypt.Decrypt(data); err != nil {
-		log.Printf("login client decrypt: %v", err)
-		c.Disconnect()
+		log.Printf("[CLIENT] %s error while decrypting client packet: %v", c.ip, err)
 		return
 	}
 	if len(data) == 0 {
 		return
 	}
+	if c.ls.Config().PrintReceivedPackets && data[0] != ClientPing {
+		log.Printf("[CLIENT] %s received packet 0x%02X (%d bytes)", c.ip, data[0], len(data))
+	}
 	switch data[0] {
 	case ClientPing:
-		c.lastEcho = time.Now()
+		c.SetLastEcho(time.Now())
 		_ = c.Send(PingPacket())
 	case ClientAuthRequest:
 		c.onAuth(data)
@@ -277,11 +303,32 @@ func (c *LoginClient) Send(payload []byte) error {
 	if c.closed {
 		return io.ErrClosedPipe
 	}
+	if c.ls.Config().PrintSentPackets && len(payload) > 0 {
+		log.Printf("[CLIENT] %s sending packet 0x%02X (%d bytes)", c.ip, payload[0], len(payload))
+	}
 	dup := bytes.Clone(payload)
 	if err := c.crypt.Encrypt(dup); err != nil {
 		return err
 	}
 	return packet.WriteFrame(c.conn, dup)
+}
+
+func (c *LoginClient) Closed() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.closed
+}
+
+func (c *LoginClient) LastEcho() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.lastEcho
+}
+
+func (c *LoginClient) SetLastEcho(t time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.lastEcho = t
 }
 
 func (c *LoginClient) CloseLoginFail(reason byte) {
