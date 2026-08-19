@@ -207,6 +207,8 @@ func (s *Server) startAttack(c *GameClient, npc *NPC) {
 		c.Send(ActionFailed())
 		return
 	}
+	// Java Attackable.addDamageHate makes the monster retaliate.
+	s.engageNPC(npc, c)
 	if c.attacking.Swap(true) {
 		return
 	}
@@ -311,28 +313,27 @@ func (s *Server) rewardKill(c *GameClient, npc *NPC) {
 	_ = s.store.Update(c.ctx(), p)
 }
 
-// npcReward is Java Attackable exp/sp with the level difference penalty of
-// Formulas: rewards fall off when the target is far below the player.
+// npcReward is Java Monster.calculateExpAndSp: above a five level gap the reward
+// decays by pow(5/6, diff - 5), and no XP means no SP either.
 func npcReward(npc *NPC, playerLevel int32) (int64, int32) {
-	exp, sp := npc.Exp, npc.SP
+	exp, sp := float64(npc.Exp), float64(npc.SP)
 	if exp == 0 && sp == 0 {
 		// NpcData XML is not vendored; derive the Interlude ballpark from level.
-		exp = int64(npc.Level) * int64(npc.Level) * 8
-		sp = npc.Level * npc.Level / 2
+		exp = float64(npc.Level) * float64(npc.Level) * 8
+		sp = float64(npc.Level) * float64(npc.Level) / 2
 	}
-	diff := playerLevel - npc.Level
-	switch {
-	case diff >= 11:
+	if diff := playerLevel - npc.Level; diff > 5 {
+		pow := math.Pow(5.0/6.0, float64(diff-5))
+		exp *= pow
+		sp *= pow
+	}
+	if exp <= 0 {
 		return 0, 0
-	case diff >= 6:
-		mul := 1 - float64(diff-5)*0.2
-		if mul < 0 {
-			mul = 0
-		}
-		return int64(float64(exp) * mul), int32(float64(sp) * mul)
-	default:
-		return exp, sp
 	}
+	if sp < 0 {
+		sp = 0
+	}
+	return int64(exp), int32(sp)
 }
 
 // checkLevelUp is Java Player.addExpAndSp level handling.

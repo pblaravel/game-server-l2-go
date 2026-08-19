@@ -16,6 +16,7 @@ type Server struct {
 	world *World
 	store CharacterStore
 	login *LoginServerThread
+	ai    *aiState
 
 	mu      sync.Mutex
 	clients []*GameClient
@@ -28,7 +29,7 @@ func NewServer(cfg config.GameConfig, store CharacterStore) *Server {
 		}
 	}
 	w := NewWorld()
-	s := &Server{cfg: cfg, world: w, store: store}
+	s := &Server{cfg: cfg, world: w, store: store, ai: newAIState()}
 	s.login = NewLoginServerThread(cfg, w)
 	s.SeedWorld(nil)
 	return s

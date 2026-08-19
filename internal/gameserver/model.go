@@ -332,6 +332,9 @@ func (n *NPC) NpcDefaults() {
 	if n.SpawnX == 0 && n.SpawnY == 0 && n.SpawnZ == 0 {
 		n.SpawnX, n.SpawnY, n.SpawnZ = n.X, n.Y, n.Z
 	}
+	if n.AggroRange == 0 && n.IsAttackable {
+		n.AggroRange = defaultAggroRange
+	}
 	if n.MaxMP == 0 {
 		n.MaxMP = n.MaxHP / 2
 		n.CurMP = n.MaxMP

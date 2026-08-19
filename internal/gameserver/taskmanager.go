@@ -22,6 +22,7 @@ const (
 func (s *Server) RunTaskManagers(ctx context.Context) {
 	go s.loop(ctx, regenPeriod, s.regenTick)
 	go s.loop(ctx, effectTickPeriod, s.effectTick)
+	go s.loop(ctx, aggroScanPeriod, s.runAggroScan)
 }
 
 func (s *Server) loop(ctx context.Context, period time.Duration, tick func()) {
