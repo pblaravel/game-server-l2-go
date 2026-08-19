@@ -1,6 +1,10 @@
 package gameserver
 
-import "github.com/pblaravel/game-server-l2-go/internal/packet"
+import (
+	"time"
+
+	"github.com/pblaravel/game-server-l2-go/internal/packet"
+)
 
 func gsWrite(write func(w *packet.Writer)) []byte {
 	w := packet.NewWriter()
@@ -107,7 +111,7 @@ func CharSelectInfo(login string, sessionID int32, slots []*Character) []byte {
 			w.WriteF64(s.CurMP)
 			w.WriteD(s.SP)
 			w.WriteQ(s.Exp)
-			w.WriteF64(0)
+			w.WriteF64(ExpPercent(int(s.Level), s.Exp))
 			w.WriteD(s.Level)
 			w.WriteD(s.Karma)
 			w.WriteD(s.PKKills)
@@ -122,17 +126,36 @@ func CharSelectInfo(login string, sessionID int32, slots []*Character) []byte {
 			w.WriteD(s.Face)
 			w.WriteF64(float64(s.MaxHP))
 			w.WriteF64(float64(s.MaxMP))
-			w.WriteD(0)
+			w.WriteD(deleteTimerSeconds(s))
 			w.WriteD(s.ClassID)
-			if i == active {
-				w.WriteD(1)
-			} else {
-				w.WriteD(0)
-			}
-			w.WriteC(0)
-			w.WriteD(0)
+			writeBool(w, i == active, 1, 0)
+			w.WriteC(int(min32(127, s.EnchantEffect)))
+			w.WriteD(s.AugmentRHand)
 		}
 	})
+}
+
+func min32(a, b int32) int32 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// deleteTimerSeconds is Java CharSelectInfo: -1 for a banned slot, otherwise the
+// remaining seconds of a scheduled deletion.
+func deleteTimerSeconds(s *Character) int32 {
+	if s.AccessLevel <= -1 {
+		return -1
+	}
+	if s.DeleteTime <= 0 {
+		return 0
+	}
+	left := (s.DeleteTime - time.Now().UnixMilli()) / 1000
+	if left < 0 {
+		return 0
+	}
+	return int32(left)
 }
 
 func writePaperdoll17(w *packet.Writer, slots [PaperCount]int32) {
@@ -204,7 +227,7 @@ func UserInfo(p *Character) []byte {
 		w.WriteD(p.BaseClass)
 		w.WriteD(p.Level)
 		w.WriteQ(p.Exp)
-		w.WriteF64(0)
+		w.WriteF64(ExpPercent(int(p.Level), p.Exp))
 		w.WriteD(p.STR)
 		w.WriteD(p.DEX)
 		w.WriteD(p.CON)
@@ -216,9 +239,13 @@ func UserInfo(p *Character) []byte {
 		w.WriteD(p.MaxMP)
 		w.WriteD(int32(p.CurMP))
 		w.WriteD(p.SP)
-		w.WriteD(0)
-		w.WriteD(80000)
-		w.WriteD(20)
+		w.WriteD(p.CurrentWeight)
+		w.WriteD(p.WeightLimit)
+		if p.PaperdollItem[PaperRHand] != 0 {
+			w.WriteD(40)
+		} else {
+			w.WriteD(20)
+		}
 		writePaperdoll17(w, p.PaperdollObj)
 		writePaperdoll17(w, p.PaperdollItem)
 		for i := 0; i < 14; i++ {
@@ -242,160 +269,250 @@ func UserInfo(p *Character) []byte {
 		w.WriteD(p.MAtkSpd)
 		w.WriteD(p.PAtkSpd)
 		w.WriteD(p.MDef)
-		w.WriteD(0)
+		w.WriteD(p.PvPFlag)
 		w.WriteD(p.Karma)
 		w.WriteD(p.RunSpeed)
 		w.WriteD(p.WalkSpeed)
-		w.WriteD(p.RunSpeed)
-		w.WriteD(p.RunSpeed)
+		w.WriteD(p.SwimSpeed)
+		w.WriteD(p.SwimSpeed)
 		w.WriteD(0)
 		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteF64(1)
-		w.WriteF64(1)
-		w.WriteF64(9)
-		w.WriteF64(23)
+		if p.Flying {
+			w.WriteD(p.RunSpeed)
+			w.WriteD(p.WalkSpeed)
+		} else {
+			w.WriteD(0)
+			w.WriteD(0)
+		}
+		w.WriteF64(p.MoveMultiplier)
+		w.WriteF64(p.AttackMultiplier)
+		w.WriteF64(p.CollisionRadius)
+		w.WriteF64(p.CollisionHeight)
 		w.WriteD(p.HairStyle)
 		w.WriteD(p.HairColor)
 		w.WriteD(p.Face)
-		if p.AccessLevel > 0 {
-			w.WriteD(1)
-		} else {
-			w.WriteD(0)
-		}
+		writeBool(w, p.AccessLevel > 0, 1, 0)
 		w.WriteS(p.Title)
 		w.WriteD(p.ClanID)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteC(0)
-		w.WriteC(0)
-		w.WriteC(0)
+		w.WriteD(p.ClanCrestID)
+		w.WriteD(p.AllyID)
+		w.WriteD(p.AllyCrestID)
+		w.WriteD(0) // relation
+		w.WriteC(int(p.MountType))
+		w.WriteC(int(p.PrivateStore))
+		w.WriteC(0) // crystallize
 		w.WriteD(p.PKKills)
 		w.WriteD(p.PvPKills)
-		w.WriteH(0)
+		w.WriteH(len(p.Cubics))
+		for _, id := range p.Cubics {
+			w.WriteH(int(id))
+		}
+		writeBoolC(w, p.InPartyMatchRoom, 1, 0)
+		w.WriteD(p.AbnormalEffect)
 		w.WriteC(0)
-		w.WriteD(0)
-		w.WriteC(0)
-		w.WriteD(0)
-		w.WriteH(0)
-		w.WriteH(0)
-		w.WriteD(0)
+		w.WriteD(0) // clan privileges
+		w.WriteH(int(p.RecomLeft))
+		w.WriteH(int(p.RecomHave))
+		w.WriteD(0) // mount npc id
 		w.WriteH(int(p.InventoryLimit))
 		w.WriteD(p.ClassID)
 		w.WriteD(0)
 		w.WriteD(p.MaxCP)
 		w.WriteD(int32(p.CurCP))
-		w.WriteC(0)
-		w.WriteC(0)
-		w.WriteD(0)
-		w.WriteC(0)
-		w.WriteC(0)
-		w.WriteC(0)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteD(0)
+		if p.MountType != 0 {
+			w.WriteC(0)
+		} else {
+			w.WriteC(int(p.EnchantEffect))
+		}
+		w.WriteC(int(p.Team))
+		w.WriteD(p.ClanCrestLargeID)
+		writeBoolC(w, p.Nobless, 1, 0)
+		writeBoolC(w, p.Hero, 1, 0)
+		writeBoolC(w, p.Fishing, 1, 0)
+		w.WriteD(p.FishX)
+		w.WriteD(p.FishY)
+		w.WriteD(p.FishZ)
 		w.WriteD(p.NameColor)
-		w.WriteC(1)
-		w.WriteD(0)
-		w.WriteD(0)
+		writeBoolC(w, p.Running, 1, 0)
+		w.WriteD(p.PledgeClass)
+		w.WriteD(p.PledgeType)
 		w.WriteD(p.TitleColor)
-		w.WriteD(0)
-		w.WriteD(40)
+		w.WriteD(p.CursedWeaponLvl)
+		w.WriteD(p.AttackRange)
 	})
 }
 
+// charInfoPaperdoll is the 12-slot order of Java CharInfo (RHAND twice).
+var charInfoPaperdoll = []Paperdoll{
+	PaperHairAll, PaperHead, PaperRHand, PaperLHand, PaperGloves, PaperChest,
+	PaperLegs, PaperFeet, PaperCloak, PaperRHand, PaperHair, PaperFace,
+}
+
+func writeBool(w *packet.Writer, v bool, yes, no int32) {
+	if v {
+		w.WriteD(yes)
+	} else {
+		w.WriteD(no)
+	}
+}
+
+func writeBoolC(w *packet.Writer, v bool, yes, no int) {
+	if v {
+		w.WriteC(yes)
+	} else {
+		w.WriteC(no)
+	}
+}
+
+// CharInfo mirrors Java serverpackets/auth/CharInfo.
 func CharInfo(p *Character) []byte {
 	return gsWrite(func(w *packet.Writer) {
 		w.WriteC(0x03)
 		w.WriteD(p.X)
 		w.WriteD(p.Y)
 		w.WriteD(p.Z)
-		w.WriteD(p.Heading)
+		w.WriteD(0) // boat object id
 		w.WriteD(p.ObjectID)
 		w.WriteS(p.Name)
 		w.WriteD(p.Race)
 		w.WriteD(p.Sex)
-		w.WriteD(p.ClassID)
-		writePaperdoll17(w, p.PaperdollItem)
-		w.WriteD(p.PvPKills)
+		w.WriteD(p.BaseClass)
+		for _, slot := range charInfoPaperdoll {
+			w.WriteD(p.PaperdollItem[slot])
+		}
+		for i := 0; i < 4; i++ {
+			w.WriteH(0)
+		}
+		w.WriteD(p.AugmentRHand)
+		for i := 0; i < 12; i++ {
+			w.WriteH(0)
+		}
+		w.WriteD(p.AugmentLHand)
+		for i := 0; i < 4; i++ {
+			w.WriteH(0)
+		}
+		w.WriteD(p.PvPFlag)
 		w.WriteD(p.Karma)
 		w.WriteD(p.MAtkSpd)
 		w.WriteD(p.PAtkSpd)
-		w.WriteD(p.PvPKills)
+		w.WriteD(p.PvPFlag)
+		w.WriteD(p.Karma)
 		w.WriteD(p.RunSpeed)
 		w.WriteD(p.WalkSpeed)
+		w.WriteD(p.SwimSpeed)
+		w.WriteD(p.SwimSpeed)
 		w.WriteD(p.RunSpeed)
-		w.WriteD(p.RunSpeed)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteF64(1)
-		w.WriteF64(1)
-		w.WriteF64(9)
-		w.WriteF64(23)
-		w.WriteD(0)
+		w.WriteD(p.WalkSpeed)
+		if p.Flying {
+			w.WriteD(p.RunSpeed)
+			w.WriteD(p.WalkSpeed)
+		} else {
+			w.WriteD(0)
+			w.WriteD(0)
+		}
+		w.WriteF64(p.MoveMultiplier)
+		w.WriteF64(p.AttackMultiplier)
+		w.WriteF64(p.CollisionRadius)
+		w.WriteF64(p.CollisionHeight)
+		w.WriteD(p.HairStyle)
+		w.WriteD(p.HairColor)
+		w.WriteD(p.Face)
 		w.WriteS(p.Title)
 		w.WriteD(p.ClanID)
+		w.WriteD(p.ClanCrestID)
+		w.WriteD(p.AllyID)
+		w.WriteD(p.AllyCrestID)
 		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteC(1)
-		w.WriteC(0)
-		w.WriteF64(float64(p.MaxHP))
-		w.WriteF64(p.CurHP)
+		writeBoolC(w, p.Sitting, 0, 1)
+		writeBoolC(w, p.Running, 1, 0)
+		writeBoolC(w, p.InCombat, 1, 0)
+		writeBoolC(w, p.AlikeDead(), 1, 0)
+		writeBoolC(w, p.Invisible, 1, 0)
+		w.WriteC(int(p.MountType))
+		w.WriteC(int(p.PrivateStore))
+		w.WriteH(len(p.Cubics))
+		for _, id := range p.Cubics {
+			w.WriteH(int(id))
+		}
+		writeBoolC(w, p.InPartyMatchRoom, 1, 0)
+		w.WriteD(p.AbnormalEffect)
+		w.WriteC(int(p.RecomLeft))
+		w.WriteH(int(p.RecomHave))
 		w.WriteD(p.ClassID)
+		w.WriteD(p.MaxCP)
+		w.WriteD(int32(p.CurCP))
+		if p.MountType != 0 {
+			w.WriteC(0)
+		} else {
+			w.WriteC(int(p.EnchantEffect))
+		}
+		w.WriteC(int(p.Team))
+		w.WriteD(p.ClanCrestLargeID)
+		writeBoolC(w, p.Nobless, 1, 0)
+		writeBoolC(w, p.Hero, 1, 0)
+		writeBoolC(w, p.Fishing, 1, 0)
+		w.WriteD(p.FishX)
+		w.WriteD(p.FishY)
+		w.WriteD(p.FishZ)
+		w.WriteD(p.NameColor)
 		w.WriteD(p.Heading)
-		w.WriteC(0)
-		w.WriteC(int(p.Level))
+		w.WriteD(p.PledgeClass)
+		w.WriteD(p.PledgeType)
+		w.WriteD(p.TitleColor)
+		w.WriteD(p.CursedWeaponLvl)
+		w.WriteD(p.AttackRange)
 	})
 }
 
+// NpcInfo mirrors Java serverpackets/actor/AbstractNpcInfo.NpcInfo.
 func NpcInfo(n *NPC) []byte {
 	return gsWrite(func(w *packet.Writer) {
 		w.WriteC(0x16)
 		w.WriteD(n.ObjectID)
 		w.WriteD(n.NPCID + 1000000)
-		if n.IsAttackable {
-			w.WriteD(1)
-		} else {
-			w.WriteD(0)
-		}
+		writeBool(w, n.IsAttackable, 1, 0)
 		w.WriteD(n.X)
 		w.WriteD(n.Y)
 		w.WriteD(n.Z)
 		w.WriteD(n.Heading)
 		w.WriteD(0)
-		w.WriteD(333)
-		w.WriteD(300)
-		w.WriteD(120)
-		w.WriteD(80)
-		w.WriteD(120)
-		w.WriteD(80)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteF64(1)
-		w.WriteF64(1)
-		w.WriteF64(8)
-		w.WriteF64(22)
-		w.WriteD(0)
+		w.WriteD(n.MAtkSpd)
+		w.WriteD(n.PAtkSpd)
+		for i := 0; i < 4; i++ {
+			w.WriteD(n.RunSpeed)
+			w.WriteD(n.WalkSpeed)
+		}
+		w.WriteF64(n.MoveMultiplier)
+		w.WriteF64(n.AttackMultiplier)
+		w.WriteF64(n.CollisionRadius)
+		w.WriteF64(n.CollisionHeight)
+		w.WriteD(n.RHand)
+		w.WriteD(n.Chest)
+		w.WriteD(n.LHand)
+		w.WriteC(1) // name above char
+		writeBoolC(w, n.Running, 1, 0)
+		writeBoolC(w, n.InCombat, 1, 0)
+		writeBoolC(w, n.AlikeDead(), 1, 0)
+		w.WriteC(2) // summoned
 		w.WriteS(n.Name)
 		w.WriteS(n.Title)
 		w.WriteD(0)
 		w.WriteD(0)
 		w.WriteD(0)
-		w.WriteD(0)
+		w.WriteD(n.AbnormalEffect)
+		w.WriteD(n.ClanID)
+		w.WriteD(n.ClanCrest)
+		w.WriteD(n.AllyID)
+		w.WriteD(n.AllyCrest)
+		w.WriteC(int(n.MoveType))
 		w.WriteC(0)
-		w.WriteC(0)
-		w.WriteF64(float64(n.MaxHP))
-		w.WriteF64(float64(n.CurHP))
-		w.WriteD(0)
+		w.WriteF64(n.CollisionRadius)
+		w.WriteF64(n.CollisionHeight)
+		w.WriteD(n.EnchantEffect)
+		writeBool(w, n.Flying, 1, 0)
+		w.WriteD(n.AttackRange)
+		w.WriteD(n.MaxHP)
+		w.WriteD(n.Level)
 	})
 }
 
@@ -461,11 +578,50 @@ func CreatureSay(objectID int32, sayType int32, name, text string) []byte {
 	})
 }
 
-func SystemMessage(id int32) []byte {
+// SysMsgParam types from Java SystemMessage.
+const (
+	sysMsgText       int32 = 0
+	sysMsgNumber     int32 = 1
+	sysMsgNpc        int32 = 2
+	sysMsgItem       int32 = 3
+	sysMsgSkill      int32 = 4
+	sysMsgItemNumber int32 = 6
+)
+
+type SysMsgParam struct {
+	kind  int32
+	num   int32
+	num2  int32
+	value string
+}
+
+func SysText(v string) SysMsgParam     { return SysMsgParam{kind: sysMsgText, value: v} }
+func SysNumber(v int32) SysMsgParam    { return SysMsgParam{kind: sysMsgNumber, num: v} }
+func SysNpc(id int32) SysMsgParam      { return SysMsgParam{kind: sysMsgNpc, num: id + 1000000} }
+func SysItem(id int32) SysMsgParam     { return SysMsgParam{kind: sysMsgItem, num: id} }
+func SysItemCount(n int32) SysMsgParam { return SysMsgParam{kind: sysMsgItemNumber, num: n} }
+func SysSkill(id, lvl int32) SysMsgParam {
+	return SysMsgParam{kind: sysMsgSkill, num: id, num2: lvl}
+}
+
+// SystemMessage mirrors Java SystemMessage: id, parameter count, typed parameters.
+func SystemMessage(id int32, params ...SysMsgParam) []byte {
 	return gsWrite(func(w *packet.Writer) {
 		w.WriteC(0x64)
 		w.WriteD(id)
-		w.WriteD(0)
+		w.WriteD(int32(len(params)))
+		for _, p := range params {
+			w.WriteD(p.kind)
+			switch p.kind {
+			case sysMsgText:
+				w.WriteS(p.value)
+			case sysMsgSkill:
+				w.WriteD(p.num)
+				w.WriteD(p.num2)
+			default:
+				w.WriteD(p.num)
+			}
+		}
 	})
 }
 
@@ -519,17 +675,25 @@ func Attack(attacker, target, damage int32, flags byte, x, y, z int32) []byte {
 	})
 }
 
-func Die(objectID int32) []byte {
+// Die mirrors Java combat/Die: village is always available, clan hall / castle /
+// siege HQ need a clan, sweepable marks a spoiled corpse.
+func Die(objectID int32, toClanHall, toCastle, toSiegeHQ, sweepable, fixedRes bool) []byte {
 	return gsWrite(func(w *packet.Writer) {
 		w.WriteC(0x06)
 		w.WriteD(objectID)
-		w.WriteD(1)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteD(0)
-		w.WriteD(0)
+		w.WriteD(1) // to nearest village
+		writeBool(w, toClanHall, 1, 0)
+		writeBool(w, toCastle, 1, 0)
+		writeBool(w, toSiegeHQ, 1, 0)
+		writeBool(w, sweepable, 1, 0)
+		writeBool(w, fixedRes, 1, 0)
+	})
+}
+
+func Revive(objectID int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x07)
+		w.WriteD(objectID)
 	})
 }
 
@@ -572,7 +736,9 @@ func DeleteObject(objectID int32) []byte {
 	})
 }
 
-func MagicSkillUse(caster, target, skillID, level, hitTime, reuse, x, y, z int32) []byte {
+// MagicSkillUse mirrors Java skill/MagicSkillUse, including the success block
+// that the client uses to play the cast animation.
+func MagicSkillUse(caster, target, skillID, level, hitTime, reuse, x, y, z, tx, ty, tz int32, success bool) []byte {
 	return gsWrite(func(w *packet.Writer) {
 		w.WriteC(0x48)
 		w.WriteD(caster)
@@ -584,7 +750,87 @@ func MagicSkillUse(caster, target, skillID, level, hitTime, reuse, x, y, z int32
 		w.WriteD(x)
 		w.WriteD(y)
 		w.WriteD(z)
-		w.WriteD(0)
+		if success {
+			w.WriteD(1)
+			w.WriteH(0)
+		} else {
+			w.WriteD(0)
+		}
+		w.WriteD(tx)
+		w.WriteD(ty)
+		w.WriteD(tz)
+	})
+}
+
+func MagicSkillLaunched(caster, skillID, level int32, targets []int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x76)
+		w.WriteD(caster)
+		w.WriteD(skillID)
+		w.WriteD(level)
+		if len(targets) == 0 {
+			w.WriteD(0)
+			w.WriteD(0)
+			return
+		}
+		w.WriteD(int32(len(targets)))
+		for _, t := range targets {
+			w.WriteD(t)
+		}
+	})
+}
+
+func MagicSkillCanceled(objectID int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x49)
+		w.WriteD(objectID)
+	})
+}
+
+// SetupGauge colors from Java SetupGauge.GaugeColor.
+const (
+	GaugeBlue  int32 = 0
+	GaugeRed   int32 = 1
+	GaugeCyan  int32 = 2
+	GaugeGreen int32 = 3
+)
+
+func SetupGauge(color, current, max int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x6D)
+		w.WriteD(color)
+		w.WriteD(current)
+		w.WriteD(max)
+	})
+}
+
+// MoveToLocation mirrors Java movement/MoveToLocation.
+func MoveToLocation(objectID, destX, destY, destZ, curX, curY, curZ int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x01)
+		w.WriteD(objectID)
+		w.WriteD(destX)
+		w.WriteD(destY)
+		w.WriteD(destZ)
+		w.WriteD(curX)
+		w.WriteD(curY)
+		w.WriteD(curZ)
+	})
+}
+
+// ChangeWaitType mirrors Java actor/ChangeWaitType (sit down / stand up).
+const (
+	WaitTypeSitting        int32 = 0
+	WaitTypeStanding       int32 = 1
+	WaitTypeStartFakeDeath int32 = 2
+	WaitTypeStopFakeDeath  int32 = 3
+)
+
+func ChangeWaitType(objectID, waitType, x, y, z int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x2F)
+		w.WriteD(objectID)
+		w.WriteD(waitType)
 		w.WriteD(x)
 		w.WriteD(y)
 		w.WriteD(z)
@@ -627,39 +873,96 @@ func ShortCutInit(shortcuts []Shortcut) []byte {
 		w.WriteC(0x45)
 		w.WriteD(int32(len(shortcuts)))
 		for _, sc := range shortcuts {
-			w.WriteD(sc.Type)
-			w.WriteD(sc.Slot + sc.Page*12)
-			switch sc.Type {
-			case 1: // ITEM
-				w.WriteD(sc.ID)
-				if sc.CharacterType == 0 {
-					w.WriteD(1)
-				} else {
-					w.WriteD(sc.CharacterType)
-				}
-				w.WriteD(0)
-				w.WriteD(0)
-				w.WriteD(0)
-				w.WriteD(0)
-			case 2: // SKILL
-				w.WriteD(sc.ID)
-				w.WriteD(sc.Level)
-				w.WriteC(0)
-				if sc.CharacterType == 0 {
-					w.WriteD(1)
-				} else {
-					w.WriteD(sc.CharacterType)
-				}
-			default:
-				w.WriteD(sc.ID)
-				if sc.CharacterType == 0 {
-					w.WriteD(1)
-				} else {
-					w.WriteD(sc.CharacterType)
-				}
-			}
+			writeShortcut(w, sc)
 		}
 	})
+}
+
+// writeShortcut is the shared body of Java ShortCutInit and ShortCutRegister.
+func writeShortcut(w *packet.Writer, sc Shortcut) {
+	charType := sc.CharacterType
+	if charType == 0 {
+		charType = 1
+	}
+	w.WriteD(sc.Type)
+	w.WriteD(sc.Slot + sc.Page*12)
+	switch sc.Type {
+	case ShortcutItem:
+		w.WriteD(sc.ID)
+		w.WriteD(charType)
+		w.WriteD(sc.SharedReuseGroup)
+		w.WriteD(0)
+		w.WriteD(0)
+		w.WriteD(0)
+	case ShortcutSkill:
+		w.WriteD(sc.ID)
+		w.WriteD(sc.Level)
+		w.WriteC(0)
+		w.WriteD(charType)
+	default:
+		w.WriteD(sc.ID)
+		w.WriteD(charType)
+	}
+}
+
+// ShortCutRegister mirrors Java ShortCutRegister (single slot update).
+func ShortCutRegister(sc Shortcut) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x44)
+		writeShortcut(w, sc)
+	})
+}
+
+// AcquireSkillType values are the ordinals of Java AcquireSkillType.
+const (
+	AcquireUsual   int32 = 0
+	AcquireFishing int32 = 1
+	AcquireClan    int32 = 2
+)
+
+// AcquireSkillList mirrors Java skill/AcquireSkillList for the USUAL type.
+func AcquireSkillList(skillType int32, nodes []ClassSkillNode) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x8A)
+		w.WriteD(skillType)
+		w.WriteD(int32(len(nodes)))
+		for _, n := range nodes {
+			w.WriteD(n.ID)
+			w.WriteD(n.Level)
+			w.WriteD(n.Level)
+			w.WriteD(n.Cost)
+			w.WriteD(0)
+		}
+	})
+}
+
+// SkillRequirement is Java AcquireSkillInfo.SkillRequirement.
+type SkillRequirement struct {
+	Type   int32
+	ItemID int32
+	Count  int32
+	Unk    int32
+}
+
+func AcquireSkillInfo(id, level, spCost, mode int32, reqs []SkillRequirement) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x8B)
+		w.WriteD(id)
+		w.WriteD(level)
+		w.WriteD(spCost)
+		w.WriteD(mode)
+		w.WriteD(int32(len(reqs)))
+		for _, r := range reqs {
+			w.WriteD(r.Type)
+			w.WriteD(r.ItemID)
+			w.WriteD(r.Count)
+			w.WriteD(r.Unk)
+		}
+	})
+}
+
+func AcquireSkillDone() []byte {
+	return gsWrite(func(w *packet.Writer) { w.WriteC(0x8E) })
 }
 
 func RestartResponse(ok bool) []byte {

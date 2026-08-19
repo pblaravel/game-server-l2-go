@@ -26,6 +26,17 @@ func NewMemoryCharacterStore() *MemoryCharacterStore {
 	return &MemoryCharacterStore{chars: make(map[int32]*Character), nextID: 300000000}
 }
 
+// RestoreCharacter is Java Player.restore: after the row is read the derived
+// state (stance, collision, stats from the class template and buffs) is rebuilt.
+func RestoreCharacter(ch *Character) *Character {
+	if ch == nil {
+		return nil
+	}
+	ch.ApplyRuntimeDefaults()
+	RecalcStats(ch)
+	return ch
+}
+
 func cloneCharacter(ch *Character) *Character {
 	if ch == nil {
 		return nil
@@ -49,7 +60,7 @@ func (s *MemoryCharacterStore) ListByAccount(_ context.Context, account string) 
 	var out []*Character
 	for _, c := range s.chars {
 		if c.Account == account {
-			out = append(out, cloneCharacter(c))
+			out = append(out, RestoreCharacter(cloneCharacter(c)))
 		}
 	}
 	return out, nil
@@ -62,7 +73,7 @@ func (s *MemoryCharacterStore) GetByObjectID(_ context.Context, id int32) (*Char
 	if !ok {
 		return nil, nil
 	}
-	return cloneCharacter(c), nil
+	return RestoreCharacter(cloneCharacter(c)), nil
 }
 
 func (s *MemoryCharacterStore) GetObjectIDByName(_ context.Context, name string) (int32, error) {

@@ -8,6 +8,8 @@ import (
 	"log"
 	"net"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/pblaravel/game-server-l2-go/internal/crypt"
 	"github.com/pblaravel/game-server-l2-go/internal/packet"
@@ -29,6 +31,12 @@ type GameClient struct {
 	player  *Character
 	closed  bool
 	target  int32
+
+	attacking atomic.Bool
+	casting   atomic.Bool
+	reuse     sync.Map // skill id -> time.Time when it becomes usable again
+	lastHit   time.Time
+	lastPvP   time.Time
 }
 
 func NewGameClient(conn net.Conn, srv *Server) *GameClient {
@@ -131,6 +139,12 @@ func (c *GameClient) Close() {
 }
 
 func (c *GameClient) CloseNow() { c.Close() }
+
+func (c *GameClient) Closed() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.closed
+}
 
 func (c *GameClient) Broadcast(payload []byte) {
 	c.server.Broadcast(payload, c)

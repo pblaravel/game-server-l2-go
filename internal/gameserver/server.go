@@ -16,6 +16,7 @@ type Server struct {
 	world *World
 	store CharacterStore
 	login *LoginServerThread
+	ai    *aiState
 
 	mu      sync.Mutex
 	clients []*GameClient
@@ -28,7 +29,7 @@ func NewServer(cfg config.GameConfig, store CharacterStore) *Server {
 		}
 	}
 	w := NewWorld()
-	s := &Server{cfg: cfg, world: w, store: store}
+	s := &Server{cfg: cfg, world: w, store: store, ai: newAIState()}
 	s.login = NewLoginServerThread(cfg, w)
 	s.SeedWorld(nil)
 	return s
@@ -49,6 +50,7 @@ func (s *Server) SeedWorld(npcs []NPC) {
 		if cp.CurHP == 0 {
 			cp.CurHP = cp.MaxHP
 		}
+		cp.NpcDefaults()
 		s.world.AddNPC(&cp)
 	}
 }
@@ -58,6 +60,7 @@ func (s *Server) World() *World             { return s.world }
 
 func (s *Server) Run(ctx context.Context) error {
 	go s.login.Run()
+	s.RunTaskManagers(ctx)
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", s.cfg.GameserverPort))
 	if err != nil {
 		return fmt.Errorf("gameserver listen: %w", err)

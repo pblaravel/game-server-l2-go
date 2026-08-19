@@ -19,8 +19,8 @@ type ClassKit struct {
 
 // PlayerLevelExp is cumulative exp required to *be* at this level (Java requiredExpToLevelUp).
 var PlayerLevelExp = []int64{
-	0,          // unused index 0
-	0,          // 1
+	0, // unused index 0
+	0, // 1
 	68, 363, 1168, 2884, 6038, 11287, 19423, 31378, 48229,
 	71201, 101676, 141192, 191417, 254161, 331466, 425503, 538475, 672708, 830564,
 	1014620, 1226951, 1471172, 1750753, 2069420, 2431166, 2840261, 3301266, 3819031, 4398706,
@@ -283,6 +283,7 @@ func (w *World) LoadDefaultSpawns() {
 	for _, n := range DefaultNewbieSpawns {
 		cp := n
 		cp.ObjectID = w.NextID()
+		cp.NpcDefaults()
 		w.AddNPC(&cp)
 	}
 }

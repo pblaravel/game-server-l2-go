@@ -11,9 +11,9 @@ import (
 
 // Server is the combined login-server process (Java Main.runServer).
 type Server struct {
-	cfg  config.LoginConfig
-	LS   *LoginServerController
-	GSC  *GameServerController
+	cfg config.LoginConfig
+	LS  *LoginServerController
+	GSC *GameServerController
 }
 
 func NewServer(cfg config.LoginConfig, accounts AccountStore, games GameServerStore) (*Server, error) {
@@ -47,7 +47,24 @@ func (s *Server) Run(ctx context.Context) error {
 	<-ctx.Done()
 	_ = clientLn.Close()
 	_ = gsLn.Close()
+	s.shutdown()
 	return nil
+}
+
+// shutdown is Java ServerShutdownService: the listeners stop first, then every
+// live client and gameserver connection is dropped.
+func (s *Server) shutdown() {
+	clients := s.LS.GetAllClients()
+	for _, c := range clients {
+		c.Disconnect()
+	}
+	threads := s.GSC.GetRegisteredGameServers()
+	for _, gsi := range threads {
+		if t := gsi.Thread(); t != nil {
+			t.Disconnect()
+		}
+	}
+	log.Printf("LoginServer shutdown: closed %d clients and %d gameservers", len(clients), len(threads))
 }
 
 func (s *Server) acceptClients(ln net.Listener) {

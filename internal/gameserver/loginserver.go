@@ -166,10 +166,20 @@ func (t *LoginServerThread) onAuthResponse(body []byte) {
 		log.Printf("Saved hex ID to %s (server %d). Next start will reuse gameservers row.", path, t.serverID)
 	}
 	log.Printf("Registered as server: [%d] %s.", t.serverID, t.name)
-	ss := serverStatusPacket([][2]int32{
-		{1, 0}, // STATUS AUTO
-	})
-	_ = t.send(ss)
+	// Java LoginServerThread sends the whole server list block after registration.
+	status := serverTypeAuto
+	if t.cfg.ServerGMOnly {
+		status = serverTypeGMOnly
+	}
+	_ = t.send(serverStatusPacket([][2]int32{
+		{attrStatus, status},
+		{attrClock, boolAttr(t.cfg.ServerListClock)},
+		{attrBrackets, boolAttr(t.cfg.ServerListBrackets)},
+		{attrAgeLimit, int32(t.cfg.ServerListAge)},
+		{attrTestServer, boolAttr(t.cfg.ServerListTestServer)},
+		{attrPvPServer, boolAttr(t.cfg.ServerListPvPServer)},
+		{attrMaxPlayers, int32(t.cfg.MaximumOnlineUsers)},
+	}))
 	var names []string
 	for _, p := range t.world.Players() {
 		names = append(names, p.Account)
@@ -177,6 +187,28 @@ func (t *LoginServerThread) onAuthResponse(body []byte) {
 	if len(names) > 0 {
 		_ = t.send(playerInGamePacket(names))
 	}
+}
+
+// Attribute and server type ids from Java commons/network/AttributeType and
+// enums/ServerType.
+const (
+	attrStatus     int32 = 1
+	attrClock      int32 = 2
+	attrBrackets   int32 = 3
+	attrAgeLimit   int32 = 4
+	attrTestServer int32 = 5
+	attrPvPServer  int32 = 6
+	attrMaxPlayers int32 = 7
+
+	serverTypeAuto   int32 = 0
+	serverTypeGMOnly int32 = 5
+)
+
+func boolAttr(v bool) int32 {
+	if v {
+		return 1
+	}
+	return 0
 }
 
 func (t *LoginServerThread) onPlayerAuth(body []byte) {

@@ -155,6 +155,7 @@ func (r *CharacterRepo) ListByAccount(ctx context.Context, account string) ([]*g
 		if err := r.loadOwned(ctx, ch); err != nil {
 			return nil, err
 		}
+		gameserver.RestoreCharacter(ch)
 	}
 	return out, nil
 }
@@ -174,7 +175,7 @@ func (r *CharacterRepo) GetByObjectID(ctx context.Context, id int32) (*gameserve
 	if err := r.loadOwned(ctx, ch); err != nil {
 		return nil, err
 	}
-	return ch, nil
+	return gameserver.RestoreCharacter(ch), nil
 }
 
 func (r *CharacterRepo) GetObjectIDByName(ctx context.Context, name string) (int32, error) {
