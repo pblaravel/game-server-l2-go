@@ -595,11 +595,11 @@ type SysMsgParam struct {
 	value string
 }
 
-func SysText(v string) SysMsgParam       { return SysMsgParam{kind: sysMsgText, value: v} }
-func SysNumber(v int32) SysMsgParam      { return SysMsgParam{kind: sysMsgNumber, num: v} }
-func SysNpc(id int32) SysMsgParam        { return SysMsgParam{kind: sysMsgNpc, num: id + 1000000} }
-func SysItem(id int32) SysMsgParam       { return SysMsgParam{kind: sysMsgItem, num: id} }
-func SysItemCount(n int32) SysMsgParam   { return SysMsgParam{kind: sysMsgItemNumber, num: n} }
+func SysText(v string) SysMsgParam     { return SysMsgParam{kind: sysMsgText, value: v} }
+func SysNumber(v int32) SysMsgParam    { return SysMsgParam{kind: sysMsgNumber, num: v} }
+func SysNpc(id int32) SysMsgParam      { return SysMsgParam{kind: sysMsgNpc, num: id + 1000000} }
+func SysItem(id int32) SysMsgParam     { return SysMsgParam{kind: sysMsgItem, num: id} }
+func SysItemCount(n int32) SysMsgParam { return SysMsgParam{kind: sysMsgItemNumber, num: n} }
 func SysSkill(id, lvl int32) SysMsgParam {
 	return SysMsgParam{kind: sysMsgSkill, num: id, num2: lvl}
 }
@@ -820,8 +820,8 @@ func MoveToLocation(objectID, destX, destY, destZ, curX, curY, curZ int32) []byt
 
 // ChangeWaitType mirrors Java actor/ChangeWaitType (sit down / stand up).
 const (
-	WaitTypeSitting  int32 = 0
-	WaitTypeStanding int32 = 1
+	WaitTypeSitting        int32 = 0
+	WaitTypeStanding       int32 = 1
 	WaitTypeStartFakeDeath int32 = 2
 	WaitTypeStopFakeDeath  int32 = 3
 )

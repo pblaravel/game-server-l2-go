@@ -71,10 +71,10 @@ func LevelMod(level int32) float64 { return (100.0 - 11 + float64(level)) / 100.
 // WeaponStats is the subset of ItemData that the stat engine needs. Java reads it
 // from the item XML; only the starter equipment is known without that datapack.
 type WeaponStats struct {
-	PAtk       int32
-	MAtk       int32
-	PAtkSpd    int32
-	CritRate   float64
+	PAtk        int32
+	MAtk        int32
+	PAtkSpd     int32
+	CritRate    float64
 	AttackRange int32
 }
 
@@ -86,11 +86,11 @@ type ArmourStats struct {
 
 var itemStats = map[int32]WeaponStats{
 	// Squire's weapons and the apprentice wand, values from Interlude item data.
-	2369: {PAtk: 8, MAtk: 6, PAtkSpd: 379, CritRate: 8, AttackRange: 40},  // Squire's Sword
-	2370: {PAtk: 8, MAtk: 6, PAtkSpd: 379, CritRate: 8, AttackRange: 40},  // Squire's Sword (DE)
-	2371: {PAtk: 8, MAtk: 6, PAtkSpd: 379, CritRate: 8, AttackRange: 40},  // Squire's Sword (Orc)
-	2372: {PAtk: 8, MAtk: 6, PAtkSpd: 379, CritRate: 8, AttackRange: 40},  // Squire's Sword (Dwarf)
-	99:   {PAtk: 4, MAtk: 8, PAtkSpd: 379, CritRate: 4, AttackRange: 40},  // Apprentice's Wand
+	2369: {PAtk: 8, MAtk: 6, PAtkSpd: 379, CritRate: 8, AttackRange: 40}, // Squire's Sword
+	2370: {PAtk: 8, MAtk: 6, PAtkSpd: 379, CritRate: 8, AttackRange: 40}, // Squire's Sword (DE)
+	2371: {PAtk: 8, MAtk: 6, PAtkSpd: 379, CritRate: 8, AttackRange: 40}, // Squire's Sword (Orc)
+	2372: {PAtk: 8, MAtk: 6, PAtkSpd: 379, CritRate: 8, AttackRange: 40}, // Squire's Sword (Dwarf)
+	99:   {PAtk: 4, MAtk: 8, PAtkSpd: 379, CritRate: 4, AttackRange: 40}, // Apprentice's Wand
 	5588: {},
 }
 

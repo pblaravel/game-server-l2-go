@@ -38,53 +38,53 @@ const (
 )
 
 type Item struct {
-	ObjectID   int32
-	ItemID     int32
-	Count      int32
-	Enchant    int16
-	Loc        string
-	LocData    int32
-	Type1      int16
-	Type2      int16
-	Custom1    int16
-	Custom2    int16
-	Equipped   bool
-	BodyPart   int32
-	Augment    int32
-	ManaLeft   int32
-	Slot       int32
+	ObjectID int32
+	ItemID   int32
+	Count    int32
+	Enchant  int16
+	Loc      string
+	LocData  int32
+	Type1    int16
+	Type2    int16
+	Custom1  int16
+	Custom2  int16
+	Equipped bool
+	BodyPart int32
+	Augment  int32
+	ManaLeft int32
+	Slot     int32
 }
 
 type Character struct {
-	ObjectID     int32
-	Account      string
-	Name         string
-	Title        string
-	Level        int32
-	MaxHP        int32
-	CurHP        float64
-	MaxMP        int32
-	CurMP        float64
-	MaxCP        int32
-	CurCP        float64
-	Face         int32
-	HairStyle    int32
-	HairColor    int32
-	Sex          int32
-	Heading      int32
-	X, Y, Z      int32
-	Exp          int64
-	SP           int32
-	Karma        int32
-	PvPKills     int32
-	PKKills      int32
-	ClanID       int32
-	Race         int32
-	ClassID      int32
-	BaseClass    int32
-	DeleteTime   int64
-	AccessLevel  int32
-	LastAccess   int64
+	ObjectID                     int32
+	Account                      string
+	Name                         string
+	Title                        string
+	Level                        int32
+	MaxHP                        int32
+	CurHP                        float64
+	MaxMP                        int32
+	CurMP                        float64
+	MaxCP                        int32
+	CurCP                        float64
+	Face                         int32
+	HairStyle                    int32
+	HairColor                    int32
+	Sex                          int32
+	Heading                      int32
+	X, Y, Z                      int32
+	Exp                          int64
+	SP                           int32
+	Karma                        int32
+	PvPKills                     int32
+	PKKills                      int32
+	ClanID                       int32
+	Race                         int32
+	ClassID                      int32
+	BaseClass                    int32
+	DeleteTime                   int64
+	AccessLevel                  int32
+	LastAccess                   int64
 	STR, DEX, CON, INT, WIT, MEN int32
 	PAtk, PDef, MAtk, MDef       int32
 	PAtkSpd, MAtkSpd             int32
@@ -356,13 +356,13 @@ func (n *NPC) NpcDefaults() {
 func (n *NPC) AlikeDead() bool { return n.Dead || n.CurHP <= 0 }
 
 type World struct {
-	mu        sync.RWMutex
-	objects   map[int32]any
-	players   map[int32]*Character
-	byName    map[string]*Character
-	npcs      map[int32]*NPC
-	nextID    int32
-	gameTime  int32
+	mu       sync.RWMutex
+	objects  map[int32]any
+	players  map[int32]*Character
+	byName   map[string]*Character
+	npcs     map[int32]*NPC
+	nextID   int32
+	gameTime int32
 }
 
 func NewWorld() *World {
@@ -462,11 +462,11 @@ func (w *World) GameTime() int32 {
 
 // StartingClass is a newbie Interlude class template.
 type StartingClass struct {
-	ClassID   int32
-	Race      int32
-	X, Y, Z   int32
+	ClassID                      int32
+	Race                         int32
+	X, Y, Z                      int32
 	STR, DEX, CON, INT, WIT, MEN int32
-	HP, MP, CP int32
+	HP, MP, CP                   int32
 }
 
 var startingClasses = map[int32]StartingClass{

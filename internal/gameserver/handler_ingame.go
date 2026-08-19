@@ -456,20 +456,20 @@ func (s *Server) sendWeightAndStats(c *GameClient) {
 // respawnPoints are the Interlude town centers Java would read from
 // RestartPointData (data/xml/restartPoints.xml is not vendored).
 var respawnPoints = [][3]int32{
-	{-71338, 258271, -3104},   // Talking Island
-	{45470, 48328, -3059},     // Gludio
-	{-12672, 122776, -3116},   // Gludin
-	{15670, 142983, -2705},    // Dion
-	{83043, 147923, -3403},    // Giran
-	{111409, 219364, -3545},   // Heine
-	{147134, -55413, -2735},   // Oren
-	{82956, 53162, -1495},     // Hunter Village
-	{116713, 76994, -2714},    // Aden
-	{9745, 15606, -4574},      // Dark Elf Village
-	{46934, 51467, -2977},     // Elven Village
-	{-44836, -112524, -235},   // Orc Village
-	{115113, -178212, -899},   // Dwarven Village
-	{-80826, 149775, -3043},   // Floran
+	{-71338, 258271, -3104}, // Talking Island
+	{45470, 48328, -3059},   // Gludio
+	{-12672, 122776, -3116}, // Gludin
+	{15670, 142983, -2705},  // Dion
+	{83043, 147923, -3403},  // Giran
+	{111409, 219364, -3545}, // Heine
+	{147134, -55413, -2735}, // Oren
+	{82956, 53162, -1495},   // Hunter Village
+	{116713, 76994, -2714},  // Aden
+	{9745, 15606, -4574},    // Dark Elf Village
+	{46934, 51467, -2977},   // Elven Village
+	{-44836, -112524, -235}, // Orc Village
+	{115113, -178212, -899}, // Dwarven Village
+	{-80826, 149775, -3043}, // Floran
 }
 
 func nearestRespawn(x, y, z int32) [3]int32 {
