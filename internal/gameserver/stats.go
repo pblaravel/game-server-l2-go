@@ -216,6 +216,22 @@ func equippedStats(p *Character) (WeaponStats, ArmourStats) {
 		if !it.Equipped {
 			continue
 		}
+		if tpl := GetItem(it.ItemID); tpl != nil {
+			weapon.PAtk += tpl.PAtk
+			weapon.MAtk += tpl.MAtk
+			if tpl.PAtkSpd > 0 {
+				weapon.PAtkSpd = tpl.PAtkSpd
+			}
+			if tpl.CritRate > 0 {
+				weapon.CritRate = tpl.CritRate
+			}
+			if tpl.AtkRange > 0 {
+				weapon.AttackRange = tpl.AtkRange
+			}
+			armour.PDef += tpl.PDef
+			armour.MDef += tpl.MDef
+			continue
+		}
 		if w, ok := itemStats[it.ItemID]; ok {
 			weapon.PAtk += w.PAtk
 			weapon.MAtk += w.MAtk

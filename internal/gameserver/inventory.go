@@ -1,9 +1,7 @@
 package gameserver
 
 // Inventory operations from Java model/actor/container/player/Inventory and
-// PcInventory. Item weight and body parts come from ItemData XML in Java; that
-// datapack is not vendored, so ItemWeight/BodyPartForItem provide the values for
-// the starter items the server hands out.
+// PcInventory. Weight, body part and stackable flags come from ItemData XML.
 
 // paperdollForBodyPart maps a Java Item.bodyPart mask to its paperdoll slot.
 func paperdollForBodyPart(bodyPart int32) Paperdoll {
@@ -36,12 +34,16 @@ func paperdollForBodyPart(bodyPart int32) Paperdoll {
 		return PaperFeet
 	case 0x2000:
 		return PaperCloak
-	case 0x4000: // two handed weapon
+	case SlotLRHand:
 		return PaperRHand
-	case 0x8000:
+	case SlotFullArmor:
+		return PaperChest
+	case SlotHair:
 		return PaperHair
-	case 0x10000:
+	case SlotFace:
 		return PaperFace
+	case SlotHairAll:
+		return PaperHairAll
 	default:
 		return -1
 	}
@@ -138,7 +140,10 @@ func RemoveItemCount(p *Character, objectID, count int32) bool {
 			return true
 		}
 		if p.Items[i].Equipped {
-			unequipSlot(p, paperdollForBodyPart(p.Items[i].BodyPart))
+			if slot := paperdollForBodyPart(p.Items[i].BodyPart); slot >= 0 {
+				unequipSlot(p, slot)
+			}
+			p.Items[i].Equipped = false
 		}
 		p.Items = append(p.Items[:i], p.Items[i+1:]...)
 		return true
@@ -164,43 +169,148 @@ func AddItem(p *Character, itemID, count int32, nextObjectID func() int32) *Item
 			slot = it.Slot + 1
 		}
 	}
-	p.Items = append(p.Items, Item{
+	item := Item{
 		ObjectID: objectID, ItemID: itemID, Count: count,
 		BodyPart: BodyPartForItem(itemID), Loc: "INVENTORY", Slot: slot, ManaLeft: -1,
-	})
+	}
+	ApplyItemTemplate(&item)
+	p.Items = append(p.Items, item)
 	return &p.Items[len(p.Items)-1]
 }
 
 func isStackable(itemID int32) bool {
-	// Adena and the newbie consumables are the stackables the server can hand out.
-	switch itemID {
-	case 57, 1147, 1146, 5588:
-		return itemID == 57
-	default:
-		return false
+	if tpl := GetItem(itemID); tpl != nil {
+		return tpl.Stackable
 	}
+	return itemID == AdenaID
 }
 
-// ItemWeight is the subset of ItemData weights needed for the starter kits.
+// ItemWeight is Java Item.getWeight, with starter-kit fallbacks when XML is absent.
 func ItemWeight(itemID int32) int32 {
+	if tpl := GetItem(itemID); tpl != nil {
+		return tpl.Weight
+	}
 	switch itemID {
-	case 57: // adena
+	case AdenaID:
 		return 0
-	case 2369, 2370, 2371, 2372: // squire's weapons
+	case 2369, 2370, 2371, 2372:
 		return 1500
-	case 99: // apprentice's wand
+	case 99:
 		return 1200
-	case 1146, 425: // shirts
+	case 1146, 425:
 		return 430
-	case 1147, 461: // pants
+	case 1147, 461:
 		return 240
-	case 1148: // shoes
+	case 1148:
 		return 250
-	case 5588: // tutorial guide
+	case 5588:
 		return 120
 	default:
 		return 100
 	}
+}
+
+func AdenaCount(p *Character) int32 {
+	if it := FindItemByID(p, AdenaID); it != nil {
+		return it.Count
+	}
+	return 0
+}
+
+func ReduceAdena(p *Character, amount int32) bool {
+	if amount <= 0 {
+		return true
+	}
+	it := FindItemByID(p, AdenaID)
+	if it == nil || it.Count < amount {
+		return false
+	}
+	return RemoveItemCount(p, it.ObjectID, amount)
+}
+
+func AddAdena(p *Character, amount int32, nextObjectID func() int32) {
+	if amount <= 0 {
+		return
+	}
+	AddItem(p, AdenaID, amount, nextObjectID)
+}
+
+func IsTradable(itemID int32) bool {
+	if tpl := GetItem(itemID); tpl != nil {
+		return tpl.Tradable && tpl.Type2 != Type2Quest
+	}
+	return itemID == AdenaID
+}
+
+func IsDestroyable(itemID int32) bool {
+	if itemID == AdenaID {
+		return true
+	}
+	if tpl := GetItem(itemID); tpl != nil {
+		return tpl.Destroyable && tpl.Type2 != Type2Quest
+	}
+	return true
+}
+
+// moveItem is Java ItemContainer.transferItem between two bags of the same owner.
+func moveItem(from, to *[]Item, objectID, count int32, destLoc string, nextObjectID func() int32) bool {
+	if from == nil || to == nil || count <= 0 {
+		return false
+	}
+	srcIdx := -1
+	for i := range *from {
+		if (*from)[i].ObjectID == objectID {
+			srcIdx = i
+			break
+		}
+	}
+	if srcIdx < 0 {
+		return false
+	}
+	src := &(*from)[srcIdx]
+	if src.Equipped || count > src.Count {
+		return false
+	}
+	moved := *src
+	moved.Equipped = false
+	moved.Loc = destLoc
+	moved.LocData = 0
+	moved.Count = count
+	if src.Count > count {
+		src.Count -= count
+		if isStackable(src.ItemID) && nextObjectID != nil {
+			moved.ObjectID = nextObjectID()
+		}
+	} else {
+		*from = append((*from)[:srcIdx], (*from)[srcIdx+1:]...)
+	}
+	if isStackable(moved.ItemID) {
+		for i := range *to {
+			if (*to)[i].ItemID == moved.ItemID {
+				(*to)[i].Count += moved.Count
+				return true
+			}
+		}
+	}
+	*to = append(*to, moved)
+	return true
+}
+
+func IsSellable(itemID int32) bool {
+	if itemID == AdenaID {
+		return false
+	}
+	if tpl := GetItem(itemID); tpl != nil {
+		return tpl.Sellable && tpl.Price > 0
+	}
+	return itemID != AdenaID
+}
+
+func ReferencePrice(itemID int32) int32 {
+	if tpl := GetItem(itemID); tpl != nil {
+		return tpl.Price
+	}
+	return 0
 }
 
 // CurrentWeight is Java Inventory.refreshWeight.

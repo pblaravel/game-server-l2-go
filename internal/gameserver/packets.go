@@ -982,3 +982,302 @@ const (
 	CharCreateTooMany       int32 = 0x03
 	CharCreateIncorrectName int32 = 0x04
 )
+
+// BuyList mirrors Java serverpackets/item/BuyList (opcode 0x11 plus the Unity openTab byte).
+func BuyList(list NpcBuyList, adena int32, openTab bool) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x11)
+		if openTab {
+			w.WriteC(1)
+		} else {
+			w.WriteC(0)
+		}
+		w.WriteD(adena)
+		w.WriteD(list.ID)
+		w.WriteH(len(list.Items))
+		for _, p := range list.Items {
+			tpl := GetItem(p.ItemID)
+			type1, type2, body := Type1QuestAdena, Type2Other, int32(0)
+			if tpl != nil {
+				type1, type2, body = tpl.Type1, tpl.Type2, tpl.BodyPart
+			}
+			w.WriteH(int(type1))
+			w.WriteD(p.ItemID)
+			w.WriteD(p.ItemID)
+			w.WriteD(0)
+			w.WriteH(int(type2))
+			w.WriteH(0)
+			w.WriteD(body)
+			w.WriteH(0)
+			w.WriteH(0)
+			w.WriteH(0)
+			w.WriteD(p.Price)
+		}
+	})
+}
+
+// SellList mirrors Java serverpackets/item/SellList.
+func SellList(adena int32, items []Item, openTab bool) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x10)
+		if openTab {
+			w.WriteC(1)
+		} else {
+			w.WriteC(0)
+		}
+		w.WriteD(adena)
+		w.WriteD(0)
+		w.WriteH(len(items))
+		for _, it := range items {
+			w.WriteH(int(it.Type1))
+			w.WriteD(it.ObjectID)
+			w.WriteD(it.ItemID)
+			w.WriteD(it.Count)
+			w.WriteH(int(it.Type2))
+			w.WriteH(int(it.Custom1))
+			w.WriteD(it.BodyPart)
+			w.WriteH(int(it.Enchant))
+			w.WriteH(int(it.Custom2))
+			w.WriteH(0)
+			w.WriteD(ReferencePrice(it.ItemID) / 2)
+		}
+	})
+}
+
+// NpcHtmlMessage mirrors Java unused/NpcHtmlMessage.
+func NpcHtmlMessage(objectID int32, html string) []byte {
+	if len(html) > 8192 {
+		html = "<html><body>Html was too long.</body></html>"
+	}
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x0F)
+		w.WriteD(objectID)
+		w.WriteS(html)
+		w.WriteD(0)
+	})
+}
+
+func AskJoinParty(name string, lootRule int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x39)
+		w.WriteS(name)
+		w.WriteD(lootRule)
+	})
+}
+
+func JoinParty(response int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x3A)
+		w.WriteD(response)
+	})
+}
+
+func PartySmallWindowAll(viewer *Character, members []*Character, leaderID, loot int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x4E)
+		w.WriteD(leaderID)
+		w.WriteD(loot)
+		n := int32(0)
+		for _, m := range members {
+			if m.ObjectID != viewer.ObjectID {
+				n++
+			}
+		}
+		w.WriteD(n)
+		for _, m := range members {
+			if m.ObjectID == viewer.ObjectID {
+				continue
+			}
+			writePartyMember(w, m)
+		}
+	})
+}
+
+func PartySmallWindowAdd(member *Character, leaderID, loot int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x4F)
+		w.WriteD(leaderID)
+		w.WriteD(loot)
+		writePartyMember(w, member)
+	})
+}
+
+func PartySmallWindowDeleteAll() []byte {
+	return gsWrite(func(w *packet.Writer) { w.WriteC(0x50) })
+}
+
+func PartySmallWindowDelete(member *Character) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x51)
+		w.WriteD(member.ObjectID)
+		w.WriteS(member.Name)
+	})
+}
+
+func writeTradeItem(w *packet.Writer, it Item, count int32) {
+	w.WriteH(int(it.Type1))
+	w.WriteD(it.ObjectID)
+	w.WriteD(it.ItemID)
+	w.WriteD(count)
+	w.WriteH(int(it.Type2))
+	w.WriteH(int(it.Custom1))
+	w.WriteD(it.BodyPart)
+	w.WriteH(int(it.Enchant))
+	w.WriteH(int(it.Custom2))
+	w.WriteH(0)
+}
+
+func writeWarehouseItem(w *packet.Writer, it Item) {
+	writeTradeItem(w, it, it.Count)
+	w.WriteD(it.ObjectID)
+	w.WriteQ(0)
+}
+
+func SendTradeRequest(senderID int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x5E)
+		w.WriteD(senderID)
+	})
+}
+
+func TradeStart(partnerID int32, items []Item) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x1E)
+		w.WriteD(partnerID)
+		w.WriteH(len(items))
+		for _, it := range items {
+			writeTradeItem(w, it, it.Count)
+		}
+	})
+}
+
+func TradeOwnAdd(it Item, count int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x20)
+		w.WriteH(1)
+		writeTradeItem(w, it, count)
+	})
+}
+
+func TradeOtherAdd(it Item, count int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x21)
+		w.WriteH(1)
+		writeTradeItem(w, it, count)
+	})
+}
+
+func SendTradeDone(ok bool) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x22)
+		if ok {
+			w.WriteD(1)
+		} else {
+			w.WriteD(0)
+		}
+	})
+}
+
+func TradePressOwnOk() []byte {
+	return gsWrite(func(w *packet.Writer) { w.WriteC(0x75) })
+}
+
+func TradePressOtherOk() []byte {
+	return gsWrite(func(w *packet.Writer) { w.WriteC(0x7C) })
+}
+
+const (
+	WarehousePrivate int16 = 1
+	WarehouseClan    int16 = 2
+)
+
+func WarehouseDepositList(adena int32, items []Item) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x41)
+		w.WriteH(int(WarehousePrivate))
+		w.WriteD(adena)
+		w.WriteH(len(items))
+		for _, it := range items {
+			writeWarehouseItem(w, it)
+		}
+	})
+}
+
+func WarehouseWithdrawList(adena int32, items []Item) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x42)
+		w.WriteH(int(WarehousePrivate))
+		w.WriteD(adena)
+		w.WriteH(len(items))
+		for _, it := range items {
+			writeWarehouseItem(w, it)
+		}
+	})
+}
+
+func FriendAddRequest(name string) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x7D)
+		w.WriteS(name)
+	})
+}
+
+func FriendAddRequestResult(accepted bool) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x77)
+		if accepted {
+			w.WriteD(1)
+		} else {
+			w.WriteD(0)
+		}
+	})
+}
+
+func FriendList(friends []Friend, online map[int32]bool) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0xFA)
+		w.WriteD(int32(len(friends)))
+		for _, f := range friends {
+			on := online[f.ObjectID]
+			w.WriteD(f.ObjectID)
+			w.WriteS(f.Name)
+			if on {
+				w.WriteD(1)
+				w.WriteD(f.ObjectID)
+			} else {
+				w.WriteD(0)
+				w.WriteD(0)
+			}
+		}
+	})
+}
+
+func L2Friend(action int32, name string, objectID int32, online bool) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0xFB)
+		w.WriteD(action)
+		w.WriteD(0)
+		w.WriteS(name)
+		if online {
+			w.WriteD(1)
+		} else {
+			w.WriteD(0)
+		}
+		w.WriteD(objectID)
+	})
+}
+
+func writePartyMember(w *packet.Writer, m *Character) {
+	w.WriteD(m.ObjectID)
+	w.WriteS(m.Name)
+	w.WriteD(int32(m.CurCP))
+	w.WriteD(m.MaxCP)
+	w.WriteD(int32(m.CurHP))
+	w.WriteD(m.MaxHP)
+	w.WriteD(int32(m.CurMP))
+	w.WriteD(m.MaxMP)
+	w.WriteD(m.Level)
+	w.WriteD(m.ClassID)
+	w.WriteD(0)
+	w.WriteD(m.Race)
+}

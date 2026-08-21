@@ -189,3 +189,42 @@ func TestSystemMessageLayoutMatchesJava(t *testing.T) {
 	walkLayout(t, "SystemMessage-text", SystemMessage(SMLearnedSkill, SysText("abc")),
 		"C"+"D"+"D"+"D"+"S")
 }
+
+func TestShopAndPartyLayoutsMatchJava(t *testing.T) {
+	list := NpcBuyList{ID: 1, Items: []BuyProduct{{ItemID: 1, Price: 100}}}
+	walkLayout(t, "BuyList", BuyList(list, 50, true),
+		"C"+"C"+"D"+"D"+"H"+"H"+"DD"+"D"+"H"+"H"+"D"+"HHH"+"D")
+	walkLayout(t, "SellList", SellList(50, []Item{{ObjectID: 1, ItemID: 2, Count: 1}}, true),
+		"C"+"C"+"D"+"D"+"H"+"H"+"DD"+"D"+"HH"+"D"+"HHH"+"D")
+	walkLayout(t, "NpcHtmlMessage", NpcHtmlMessage(1, "<html></html>"), "C"+"D"+"S"+"D")
+	walkLayout(t, "AskJoinParty", AskJoinParty("A", 0), "C"+"S"+"D")
+	walkLayout(t, "JoinParty", JoinParty(1), "C"+"D")
+	p := &Character{ObjectID: 2, Name: "B", Level: 1}
+	walkLayout(t, "PartySmallWindowAdd", PartySmallWindowAdd(p, 1, 0),
+		"C"+"D"+"D"+"D"+"S"+rep("D", 10))
+	walkLayout(t, "PartySmallWindowDelete", PartySmallWindowDelete(p), "C"+"D"+"S")
+	walkLayout(t, "PartySmallWindowDeleteAll", PartySmallWindowDeleteAll(), "C")
+}
+
+func TestTradeWarehouseFriendLayoutsMatchJava(t *testing.T) {
+	it := Item{ObjectID: 1, ItemID: 57, Count: 10, Type1: 4, Type2: 4}
+	walkLayout(t, "SendTradeRequest", SendTradeRequest(7), "C"+"D")
+	walkLayout(t, "TradeStart", TradeStart(7, []Item{it}),
+		"C"+"D"+"H"+"H"+"DD"+"D"+"HH"+"D"+"HHH")
+	walkLayout(t, "TradeOwnAdd", TradeOwnAdd(it, 3),
+		"C"+"H"+"H"+"DD"+"D"+"HH"+"D"+"HHH")
+	walkLayout(t, "TradeOtherAdd", TradeOtherAdd(it, 3),
+		"C"+"H"+"H"+"DD"+"D"+"HH"+"D"+"HHH")
+	walkLayout(t, "SendTradeDone", SendTradeDone(true), "C"+"D")
+	walkLayout(t, "TradePressOwnOk", TradePressOwnOk(), "C")
+	walkLayout(t, "TradePressOtherOk", TradePressOtherOk(), "C")
+	walkLayout(t, "WarehouseDepositList", WarehouseDepositList(50, []Item{it}),
+		"C"+"H"+"D"+"H"+"H"+"DD"+"D"+"HH"+"D"+"HHH"+"D"+"Q")
+	walkLayout(t, "WarehouseWithdrawList", WarehouseWithdrawList(50, []Item{it}),
+		"C"+"H"+"D"+"H"+"H"+"DD"+"D"+"HH"+"D"+"HHH"+"D"+"Q")
+	walkLayout(t, "FriendAddRequest", FriendAddRequest("A"), "C"+"S")
+	walkLayout(t, "FriendAddRequestResult", FriendAddRequestResult(true), "C"+"D")
+	walkLayout(t, "FriendList", FriendList([]Friend{{ObjectID: 1, Name: "B"}}, map[int32]bool{1: true}),
+		"C"+"D"+"D"+"S"+"DD")
+	walkLayout(t, "L2Friend", L2Friend(1, "B", 1, true), "C"+"DD"+"S"+"DD")
+}

@@ -12,11 +12,14 @@ import (
 
 // Server is the gameserver process (Java GameServer).
 type Server struct {
-	cfg   config.GameConfig
-	world *World
-	store CharacterStore
-	login *LoginServerThread
-	ai    *aiState
+	cfg     config.GameConfig
+	world   *World
+	store   CharacterStore
+	login   *LoginServerThread
+	ai      *aiState
+	parties *partyState
+	trades  *tradeState
+	friends *friendState
 
 	mu      sync.Mutex
 	clients []*GameClient
@@ -29,7 +32,7 @@ func NewServer(cfg config.GameConfig, store CharacterStore) *Server {
 		}
 	}
 	w := NewWorld()
-	s := &Server{cfg: cfg, world: w, store: store, ai: newAIState()}
+	s := &Server{cfg: cfg, world: w, store: store, ai: newAIState(), parties: newPartyState(), trades: newTradeState(), friends: newFriendState()}
 	s.login = NewLoginServerThread(cfg, w)
 	s.SeedWorld(nil)
 	return s
@@ -50,6 +53,7 @@ func (s *Server) SeedWorld(npcs []NPC) {
 		if cp.CurHP == 0 {
 			cp.CurHP = cp.MaxHP
 		}
+		ApplyNpcTemplate(&cp)
 		cp.NpcDefaults()
 		s.world.AddNPC(&cp)
 	}

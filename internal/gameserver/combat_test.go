@@ -26,6 +26,7 @@ func testClient(t *testing.T, srv *Server, p *Character) (*GameClient, func()) {
 	c.SetAccountName(p.Account)
 	c.SetPlayer(p)
 	c.SetState(StateInGame)
+	p.Online = true
 	srv.mu.Lock()
 	srv.clients = append(srv.clients, c)
 	srv.mu.Unlock()

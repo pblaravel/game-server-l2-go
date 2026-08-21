@@ -344,6 +344,9 @@ func (s *Server) applySkill(c *GameClient, tpl *SkillTemplate, npc *NPC) {
 		mcrit := CalcCrit(int32(baseMCritHit * 10))
 		dmg := CalcMagicDamage(p.MAtk, npc.MDef, tpl.Power, mcrit, false)
 		s.applySkillDamage(c, npc, int32(dmg), mcrit)
+	case "RECALL":
+		loc := NearestRestartLocation(p)
+		s.teleportPlayer(c, loc[0], loc[1], loc[2])
 	case "BUFF", "CONT", "HOT", "MPHOT", "CPHOT", "SELF_BUFF":
 		applied := AddEffects(p, tpl)
 		if len(applied) > 0 {

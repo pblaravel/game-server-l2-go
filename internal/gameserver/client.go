@@ -132,6 +132,9 @@ func (c *GameClient) Close() {
 		log.Printf("GS CLOSE %s %s", hostOnly(c.conn.RemoteAddr()), who)
 	}
 	if c.player != nil {
+		if pt := c.server.partyOf(c.player); pt != nil {
+			c.server.removeFromParty(pt, c.player, true)
+		}
 		c.server.world.RemovePlayer(c.player.ObjectID)
 		c.server.login.SendLogout(c.account)
 	}
