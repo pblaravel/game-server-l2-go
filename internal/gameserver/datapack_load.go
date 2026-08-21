@@ -34,6 +34,9 @@ func LoadDatapack(dataDir string) error {
 	if dataDir == "" {
 		dataDir = FindDataDir()
 	}
+	if err := loadPlayerLevelXML(filepath.Join(dataDir, "xml", "playerLevels.xml")); err != nil {
+		log.Printf("datapack player levels: %v (hardcoded exp table stays in use)", err)
+	}
 	if err := loadSkillXML(filepath.Join(dataDir, "xml", "skills")); err != nil {
 		return fmt.Errorf("skills: %w", err)
 	}
@@ -55,8 +58,8 @@ func LoadDatapack(dataDir string) error {
 	if err := loadRestartXML(filepath.Join(dataDir, "xml", "restartPointAreas.xml")); err != nil {
 		log.Printf("datapack restart points: %v", err)
 	}
-	log.Printf("datapack: %d skill levels, %d classes, %d items, %d npcs, %d buylists, %d teleport npcs, %d restart points",
-		SkillCount(), ClassCount(), ItemCount(), NpcTemplateCount(), BuyListCount(), TeleportListCount(), RestartPointCount())
+	log.Printf("datapack: %d skill levels, %d classes, %d items, %d npcs, %d buylists, %d teleport npcs, %d restart points, %d player levels",
+		SkillCount(), ClassCount(), ItemCount(), NpcTemplateCount(), BuyListCount(), TeleportListCount(), RestartPointCount(), PlayerLevelCount())
 	return nil
 }
 

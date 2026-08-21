@@ -428,7 +428,7 @@ func npcReward(npc *NPC, playerLevel int32) (int64, int32) {
 func (s *Server) checkLevelUp(c *GameClient) bool {
 	p := c.Player()
 	levelled := false
-	for p.Level < int32(len(PlayerLevelExp)-1) && p.Exp >= ExpForLevel(int(p.Level)+1) {
+	for p.Level < MaxPlayerLevel() && p.Exp >= ExpForLevel(int(p.Level)+1) {
 		p.Level++
 		levelled = true
 	}

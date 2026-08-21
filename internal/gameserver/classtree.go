@@ -33,6 +33,7 @@ type ClassTemplate struct {
 	Radius, RadiusFemale, Height, HeightFemale float64
 	HPTable, MPTable, CPTable                  []float64
 	HPRegenTable, MPRegenTable, CPRegenTable   []float64
+	Spawns                                     [][3]int32
 }
 
 func tableAt(t []float64, level int32) float64 {
@@ -175,6 +176,13 @@ type xmlClass struct {
 	Sets   []xmlClassSet `xml:"set"`
 	Items  []xmlItem     `xml:"items>item"`
 	Skills []xmlCSkill   `xml:"skills>skill"`
+	Spawns []xmlSpawn    `xml:"spawns>spawn"`
+}
+
+type xmlSpawn struct {
+	X int32 `xml:"x,attr"`
+	Y int32 `xml:"y,attr"`
+	Z int32 `xml:"z,attr"`
 }
 
 type xmlClassSet struct {
@@ -328,6 +336,9 @@ func parseClass(c xmlClass) *ClassTemplate {
 		tpl.Skills = append(tpl.Skills, ClassSkillNode{
 			ID: sk.ID, Level: sk.Lvl, Cost: sk.Cost, MinLvl: sk.MinLvl,
 		})
+	}
+	for _, loc := range c.Spawns {
+		tpl.Spawns = append(tpl.Spawns, [3]int32{loc.X, loc.Y, loc.Z})
 	}
 	return tpl
 }

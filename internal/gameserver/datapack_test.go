@@ -81,11 +81,33 @@ func TestExpTable(t *testing.T) {
 	if ExpForLevel(2) != 68 {
 		t.Fatal("level 2")
 	}
-	if ExpForLevel(81) != 610560301 {
-		t.Fatal("level 81")
+	if PlayerLevelCount() == 0 {
+		t.Fatal("playerLevels.xml was not loaded")
+	}
+	// Java PlayerLevelData: first unreachable level is 81.
+	if ExpForLevel(14) != 191452 {
+		t.Fatalf("level 14 exp = %d, want 191452 from playerLevels.xml", ExpForLevel(14))
+	}
+	if ExpForLevel(81) != 6299994999 {
+		t.Fatalf("level 81 exp = %d, want 6299994999 from playerLevels.xml", ExpForLevel(81))
 	}
 	if p := ExpPercent(1, 34); p < 0.4 || p > 0.6 {
 		t.Fatalf("percent %v", p)
+	}
+}
+
+func TestClassSpawnFromXML(t *testing.T) {
+	tpl := GetClassTemplate(0)
+	if tpl == nil || len(tpl.Spawns) == 0 {
+		t.Fatal("human fighter spawn list missing")
+	}
+	// Cedric hall coords are commented out; live spawn is Talking Island village.
+	if tpl.Spawns[0][0] != -90875 || tpl.Spawns[0][1] != 248162 {
+		t.Fatalf("human fighter spawn = %#v, want Talking Island village", tpl.Spawns[0])
+	}
+	ch := DefaultCharacter("acc", "Spawn", 0, 0, 0, 0, 0, 0, 300, nil)
+	if ch.X != -90875 || ch.Y != 248162 {
+		t.Fatalf("created at %d,%d want XML spawn", ch.X, ch.Y)
 	}
 }
 

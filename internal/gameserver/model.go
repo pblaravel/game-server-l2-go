@@ -510,12 +510,16 @@ func DefaultCharacter(account, name string, classID, race, sex, hair, color, fac
 		classID = 0
 		race = 0
 	}
+	x, y, z := tpl.X, tpl.Y, tpl.Z
+	if ct := GetClassTemplate(classID); ct != nil && len(ct.Spawns) > 0 {
+		x, y, z = ct.Spawns[0][0], ct.Spawns[0][1], ct.Spawns[0][2]
+	}
 	ch := &Character{
 		ObjectID: objectID, Account: account, Name: name,
 		Level: 1, MaxHP: tpl.HP, CurHP: float64(tpl.HP), MaxMP: tpl.MP, CurMP: float64(tpl.MP),
 		MaxCP: tpl.CP, CurCP: float64(tpl.CP),
 		Face: face, HairStyle: hair, HairColor: color, Sex: sex,
-		X: tpl.X, Y: tpl.Y, Z: tpl.Z,
+		X: x, Y: y, Z: z,
 		Race: race, ClassID: classID, BaseClass: classID,
 		STR: tpl.STR, DEX: tpl.DEX, CON: tpl.CON, INT: tpl.INT, WIT: tpl.WIT, MEN: tpl.MEN,
 		PAtk: 10, PDef: 20, MAtk: 8, MDef: 20, PAtkSpd: 300, MAtkSpd: 333,
