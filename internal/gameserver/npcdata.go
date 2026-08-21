@@ -244,6 +244,9 @@ func ApplyNpcTemplate(n *NPC) {
 	if n.LHand == 0 {
 		n.LHand = tpl.LHand
 	}
+	if n.Type == "" {
+		n.Type = tpl.Type
+	}
 	n.IsAttackable = tpl.CanBeAttacked && isMonsterType(tpl.Type)
 }
 

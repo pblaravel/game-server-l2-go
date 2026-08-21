@@ -266,7 +266,7 @@ var DefaultNewbieSpawns = []NPC{
 	{NPCID: 30003, Name: "Silvia", Title: "Accessory Merchant", X: -71338, Y: 258080, Z: -3104, Level: 70, MaxHP: 8000, CurHP: 8000},
 	{NPCID: 30009, Name: "Newbie Guide", X: -71380, Y: 258400, Z: -3104, Level: 70, MaxHP: 8000, CurHP: 8000},
 	{NPCID: 30031, Name: "Captain Bathis", Title: "Guard Captain", X: -72224, Y: 257788, Z: -3120, Level: 70, MaxHP: 12000, CurHP: 12000},
-	{NPCID: 30050, Name: "Elias", Title: "Warehouse Keeper", X: -71080, Y: 258271, Z: -3104, Level: 70, MaxHP: 8000, CurHP: 8000},
+	{NPCID: 30054, Name: "Rant", Title: "Warehouse Keeper", X: -71220, Y: 258191, Z: -3104, Level: 70, MaxHP: 8000, CurHP: 8000},
 	{NPCID: 30146, Name: "Mirabel", Title: "Gatekeeper", X: 45873, Y: 49688, Z: -3056, Level: 70, MaxHP: 10000, CurHP: 10000},
 	{NPCID: 30134, Name: "Jasmine", Title: "Gatekeeper", X: 9690, Y: 15537, Z: -4570, Level: 70, MaxHP: 10000, CurHP: 10000},
 	{NPCID: 30576, Name: "Tataru Zu Hestui", Title: "Gatekeeper", X: -45251, Y: -112400, Z: -240, Level: 70, MaxHP: 10000, CurHP: 10000},

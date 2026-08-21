@@ -18,6 +18,8 @@ type Server struct {
 	login   *LoginServerThread
 	ai      *aiState
 	parties *partyState
+	trades  *tradeState
+	friends *friendState
 
 	mu      sync.Mutex
 	clients []*GameClient
@@ -30,7 +32,7 @@ func NewServer(cfg config.GameConfig, store CharacterStore) *Server {
 		}
 	}
 	w := NewWorld()
-	s := &Server{cfg: cfg, world: w, store: store, ai: newAIState(), parties: newPartyState()}
+	s := &Server{cfg: cfg, world: w, store: store, ai: newAIState(), parties: newPartyState(), trades: newTradeState(), friends: newFriendState()}
 	s.login = NewLoginServerThread(cfg, w)
 	s.SeedWorld(nil)
 	return s

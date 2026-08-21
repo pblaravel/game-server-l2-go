@@ -117,11 +117,19 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		s.onDropItem(c, r)
 	case 0x14: // UseItem
 		s.onUseItem(c, r)
+	case 0x15: // TradeRequest
+		s.onTradeRequest(c, r)
+	case 0x16: // AddTradeItem
+		s.onAddTradeItem(c, r)
+	case 0x17: // TradeDone
+		s.onTradeDone(c, r)
 	case 0x1A, 0x23, 0x2E, 0x34, 0x3E: // Java DummyPacket
 	case 0x1B: // RequestSocialAction
 		s.onSocialAction(c, r)
 	case 0x1C: // RequestChangeMoveType
 		s.onChangeMoveType(c)
+	case 0x1D: // RequestChangeWaitType
+		s.onChangeWaitType(c, r)
 	case 0x1E: // RequestSellItem
 		s.onSellItem(c, r)
 	case 0x1F: // RequestBuyItem
@@ -140,18 +148,38 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		s.onMagicSkillUse(c, r)
 	case 0x30: // Appearing
 		s.onAppearing(c)
+	case 0x31: // SendWarehouseDepositList
+		s.onWarehouseDeposit(c, r)
+	case 0x32: // SendWarehouseWithdrawList
+		s.onWarehouseWithdraw(c, r)
+	case 0x33: // RequestShortCutReg
+		s.onShortCutReg(c, r)
+	case 0x35: // RequestShortCutDel
+		s.onShortCutDel(c, r)
 	case 0x37: // RequestTargetCancel
 		s.onTargetCancel(c, r)
 	case 0x38: // Say2
 		s.onSay2(c, r)
 	case 0x3F: // RequestSkillList
 		c.Send(SkillList(p.Skills))
+	case 0x44: // AnswerTradeRequest
+		s.onAnswerTradeRequest(c, r)
 	case 0x45: // RequestActionUse
 		s.onActionUse(c, r)
 	case 0x46: // RequestRestart
 		s.onRestart(c)
 	case 0x48: // ValidatePosition
 		s.onValidatePosition(c, r)
+	case 0x59: // RequestDestroyItem
+		s.onDestroyItem(c, r)
+	case 0x5E: // RequestFriendInvite
+		s.onFriendInvite(c, r)
+	case 0x5F: // RequestAnswerFriendInvite
+		s.onAnswerFriendInvite(c, r)
+	case 0x60: // RequestFriendList
+		s.onFriendList(c)
+	case 0x61: // RequestFriendDel
+		s.onFriendDel(c, r)
 	case 0x6B: // RequestAcquireSkillInfo
 		s.onAcquireSkillInfo(c, r)
 	case 0x6C: // RequestAcquireSkill
@@ -231,6 +259,9 @@ func (s *Server) onAuthLogin(c *GameClient, data []byte) {
 }
 
 func (s *Server) onLogout(c *GameClient) {
+	if p := c.Player(); p != nil {
+		s.cancelTradeFor(p.ObjectID)
+	}
 	c.Send(LeaveWorld())
 	c.Close()
 }

@@ -151,8 +151,7 @@ func (s *Server) onUseItem(c *GameClient, r *packet.Reader) {
 		return
 	}
 	if item.BodyPart == 0 {
-		// Java hands non-equipable items to an ItemHandler; none are ported yet.
-		c.Send(ActionFailed())
+		s.useConsumable(c, item)
 		return
 	}
 	if item.Equipped {
@@ -227,14 +226,7 @@ func (s *Server) onActionUse(c *GameClient, r *packet.Reader) {
 	}
 	switch action {
 	case 0: // sit / stand
-		p.Sitting = !p.Sitting
-		waitType := WaitTypeStanding
-		if p.Sitting {
-			waitType = WaitTypeSitting
-		}
-		pkt := ChangeWaitType(p.ObjectID, waitType, p.X, p.Y, p.Z)
-		c.Send(pkt)
-		c.Broadcast(pkt)
+		s.setSitting(c, !p.Sitting)
 	case 1: // walk / run
 		s.onChangeMoveType(c)
 	default:
@@ -307,6 +299,7 @@ func (s *Server) onRestart(c *GameClient) {
 		c.Send(RestartResponse(false))
 		return
 	}
+	s.cancelTradeFor(p.ObjectID)
 	if pt := s.partyOf(p); pt != nil {
 		s.removeFromParty(pt, p, true)
 	}
@@ -323,9 +316,8 @@ func (s *Server) onRestart(c *GameClient) {
 	c.Send(CharSelectInfo(c.AccountName(), c.SessionKey().PlayOkID1, slots))
 }
 
-// onRestartPoint is Java clientpackets/combat/RequestRestartPoint. Java picks the
-// destination from RestartPointData XML, which is not vendored; the town list in
-// respawnPoints stands in for it.
+// onRestartPoint is Java clientpackets/combat/RequestRestartPoint. Destination
+// comes from RestartPointData (data/xml/restartPointAreas.xml).
 func (s *Server) onRestartPoint(c *GameClient, r *packet.Reader) {
 	p := c.Player()
 	_ = r.ReadD() // requestType: village / clan hall / castle / fixed
@@ -434,6 +426,134 @@ func (s *Server) refreshAppearance(c *GameClient) {
 	c.Send(UserInfo(p))
 	c.Broadcast(CharInfo(p))
 	_ = s.store.Update(c.ctx(), p)
+}
+
+func (s *Server) onChangeWaitType(c *GameClient, r *packet.Reader) {
+	stand := r.ReadD() == 1
+	s.setSitting(c, !stand)
+}
+
+func (s *Server) setSitting(c *GameClient, sitting bool) {
+	p := c.Player()
+	if p.Sitting == sitting {
+		return
+	}
+	p.Sitting = sitting
+	waitType := WaitTypeStanding
+	if sitting {
+		waitType = WaitTypeSitting
+	}
+	pkt := ChangeWaitType(p.ObjectID, waitType, p.X, p.Y, p.Z)
+	c.Send(pkt)
+	c.Broadcast(pkt)
+}
+
+func (s *Server) onShortCutReg(c *GameClient, r *packet.Reader) {
+	p := c.Player()
+	typ := r.ReadD()
+	slotPage := r.ReadD()
+	id := r.ReadD()
+	charType := r.ReadD()
+	slot := slotPage % 12
+	page := slotPage / 12
+	if page < 0 || page > 10 || typ < ShortcutItem || typ > ShortcutRecipe {
+		return
+	}
+	sc := Shortcut{Slot: slot, Page: page, Type: typ, ID: id, Level: -1, CharacterType: charType}
+	if typ == ShortcutSkill {
+		level := int32(0)
+		for _, sk := range p.Skills {
+			if sk.ID == id {
+				level = sk.Level
+			}
+		}
+		if level <= 0 {
+			return
+		}
+		sc.Level = level
+	}
+	replaced := false
+	for i := range p.Shortcuts {
+		if p.Shortcuts[i].Slot == slot && p.Shortcuts[i].Page == page {
+			p.Shortcuts[i] = sc
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		p.Shortcuts = append(p.Shortcuts, sc)
+	}
+	c.Send(ShortCutRegister(sc))
+	_ = s.store.Update(c.ctx(), p)
+}
+
+func (s *Server) onShortCutDel(c *GameClient, r *packet.Reader) {
+	p := c.Player()
+	id := r.ReadD()
+	slot := id % 12
+	page := id / 12
+	if page < 0 || page > 9 {
+		return
+	}
+	kept := p.Shortcuts[:0]
+	for _, sc := range p.Shortcuts {
+		if sc.Slot == slot && sc.Page == page {
+			continue
+		}
+		kept = append(kept, sc)
+	}
+	p.Shortcuts = append([]Shortcut(nil), kept...)
+	_ = s.store.Update(c.ctx(), p)
+}
+
+func (s *Server) onDestroyItem(c *GameClient, r *packet.Reader) {
+	p := c.Player()
+	objectID := r.ReadD()
+	count := r.ReadD()
+	if s.tradeOf(p.ObjectID) != nil {
+		c.Send(SystemMessage(SMAlreadyTrading))
+		return
+	}
+	it := FindItem(p, objectID)
+	if it == nil {
+		return
+	}
+	if count < 1 || count > it.Count {
+		c.Send(SystemMessage(SMCannotDestroyNumber))
+		return
+	}
+	if !isStackable(it.ItemID) && count > 1 {
+		return
+	}
+	if !IsDestroyable(it.ItemID) {
+		c.Send(SystemMessage(SMCannotDiscardThisItem))
+		return
+	}
+	if it.Equipped && it.BodyPart != 0 {
+		UnequipBodyPart(p, it.BodyPart)
+	}
+	RemoveItemCount(p, objectID, count)
+	c.Send(ItemList(p.Items, false))
+	s.sendWeightAndStats(c)
+	_ = s.store.Update(c.ctx(), p)
+	c.logChange("destroyed item=%d count=%d", it.ItemID, count)
+}
+
+func (s *Server) useConsumable(c *GameClient, item *Item) {
+	p := c.Player()
+	tpl := GetItem(item.ItemID)
+	if tpl == nil || tpl.SkillID == 0 {
+		c.Send(ActionFailed())
+		return
+	}
+	if !RemoveItemCount(p, item.ObjectID, 1) {
+		c.Send(ActionFailed())
+		return
+	}
+	c.Send(ItemList(p.Items, false))
+	s.sendWeightAndStats(c)
+	_ = s.store.Update(c.ctx(), p)
+	s.castSkill(c, tpl.SkillID, tpl.SkillLevel)
 }
 
 func (s *Server) sendWeightAndStats(c *GameClient) {

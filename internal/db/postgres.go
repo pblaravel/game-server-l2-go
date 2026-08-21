@@ -254,6 +254,9 @@ func (r *CharacterRepo) Delete(ctx context.Context, id int32) error {
 	if _, err := tx.Exec(ctx, `DELETE FROM character_shortcuts WHERE char_obj_id=$1`, id); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(ctx, `DELETE FROM character_friends WHERE char_id=$1`, id); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(ctx, `DELETE FROM characters WHERE obj_id=$1`, id); err != nil {
 		return err
 	}
@@ -288,7 +291,10 @@ func (r *CharacterRepo) loadOwned(ctx context.Context, ch *gameserver.Character)
 	if err := loadSkills(ctx, r.p.p, ch); err != nil {
 		return err
 	}
-	return loadShortcuts(ctx, r.p.p, ch)
+	if err := loadShortcuts(ctx, r.p.p, ch); err != nil {
+		return err
+	}
+	return loadFriends(ctx, r.p.p, ch)
 }
 
 func saveOwned(ctx context.Context, q queryExecer, ch *gameserver.Character) error {
@@ -301,17 +307,30 @@ func saveOwned(ctx context.Context, q queryExecer, ch *gameserver.Character) err
 	if _, err := q.Exec(ctx, `DELETE FROM character_shortcuts WHERE char_obj_id=$1`, ch.ObjectID); err != nil {
 		return err
 	}
-	for _, it := range ch.Items {
+	if _, err := q.Exec(ctx, `DELETE FROM character_friends WHERE char_id=$1`, ch.ObjectID); err != nil {
+		return err
+	}
+	saveItem := func(it gameserver.Item, fallbackLoc string) error {
 		loc := it.Loc
 		if loc == "" {
-			loc = "INVENTORY"
+			loc = fallbackLoc
 		}
 		if it.Equipped {
 			loc = "PAPERDOLL"
 		}
-		if _, err := q.Exec(ctx, `INSERT INTO items (owner_id, object_id, item_id, count, enchant_level, loc, loc_data, custom_type1, custom_type2, mana_left)
+		_, err := q.Exec(ctx, `INSERT INTO items (owner_id, object_id, item_id, count, enchant_level, loc, loc_data, custom_type1, custom_type2, mana_left)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-			ch.ObjectID, it.ObjectID, it.ItemID, it.Count, it.Enchant, loc, it.Slot, it.Custom1, it.Custom2, it.ManaLeft); err != nil {
+			ch.ObjectID, it.ObjectID, it.ItemID, it.Count, it.Enchant, loc, it.Slot, it.Custom1, it.Custom2, it.ManaLeft)
+		return err
+	}
+	for _, it := range ch.Items {
+		if err := saveItem(it, "INVENTORY"); err != nil {
+			return err
+		}
+	}
+	for _, it := range ch.Warehouse {
+		it.Loc = "WAREHOUSE"
+		if err := saveItem(it, "WAREHOUSE"); err != nil {
 			return err
 		}
 	}
@@ -327,6 +346,12 @@ func saveOwned(ctx context.Context, q queryExecer, ch *gameserver.Character) err
 			return err
 		}
 	}
+	for _, f := range ch.Friends {
+		if _, err := q.Exec(ctx, `INSERT INTO character_friends (char_id, friend_id) VALUES ($1,$2)`,
+			ch.ObjectID, f.ObjectID); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -338,6 +363,7 @@ func loadItems(ctx context.Context, q queryExecer, ch *gameserver.Character) err
 	}
 	defer rows.Close()
 	ch.Items = ch.Items[:0]
+	ch.Warehouse = ch.Warehouse[:0]
 	for rows.Next() {
 		var it gameserver.Item
 		if err := rows.Scan(&it.ObjectID, &it.ItemID, &it.Count, &it.Enchant, &it.Loc, &it.Slot, &it.Custom1, &it.Custom2, &it.ManaLeft); err != nil {
@@ -345,10 +371,34 @@ func loadItems(ctx context.Context, q queryExecer, ch *gameserver.Character) err
 		}
 		it.Equipped = it.Loc == "PAPERDOLL"
 		it.BodyPart = gameserver.BodyPartForItem(it.ItemID)
+		if it.Loc == "WAREHOUSE" {
+			ch.Warehouse = append(ch.Warehouse, it)
+			continue
+		}
 		if it.Equipped {
 			gameserver.EquipPaperdoll(ch, it.BodyPart, it.ItemID, it.ObjectID)
 		}
 		ch.Items = append(ch.Items, it)
+	}
+	return rows.Err()
+}
+
+func loadFriends(ctx context.Context, q queryExecer, ch *gameserver.Character) error {
+	rows, err := q.Query(ctx, `SELECT f.friend_id, COALESCE(c.char_name, '')
+		FROM character_friends f
+		LEFT JOIN characters c ON c.obj_id = f.friend_id
+		WHERE f.char_id=$1`, ch.ObjectID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	ch.Friends = ch.Friends[:0]
+	for rows.Next() {
+		var f gameserver.Friend
+		if err := rows.Scan(&f.ObjectID, &f.Name); err != nil {
+			return err
+		}
+		ch.Friends = append(ch.Friends, f)
 	}
 	return rows.Err()
 }

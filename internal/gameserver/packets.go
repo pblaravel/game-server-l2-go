@@ -1114,6 +1114,159 @@ func PartySmallWindowDelete(member *Character) []byte {
 	})
 }
 
+func writeTradeItem(w *packet.Writer, it Item, count int32) {
+	w.WriteH(int(it.Type1))
+	w.WriteD(it.ObjectID)
+	w.WriteD(it.ItemID)
+	w.WriteD(count)
+	w.WriteH(int(it.Type2))
+	w.WriteH(int(it.Custom1))
+	w.WriteD(it.BodyPart)
+	w.WriteH(int(it.Enchant))
+	w.WriteH(int(it.Custom2))
+	w.WriteH(0)
+}
+
+func writeWarehouseItem(w *packet.Writer, it Item) {
+	writeTradeItem(w, it, it.Count)
+	w.WriteD(it.ObjectID)
+	w.WriteQ(0)
+}
+
+func SendTradeRequest(senderID int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x5E)
+		w.WriteD(senderID)
+	})
+}
+
+func TradeStart(partnerID int32, items []Item) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x1E)
+		w.WriteD(partnerID)
+		w.WriteH(len(items))
+		for _, it := range items {
+			writeTradeItem(w, it, it.Count)
+		}
+	})
+}
+
+func TradeOwnAdd(it Item, count int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x20)
+		w.WriteH(1)
+		writeTradeItem(w, it, count)
+	})
+}
+
+func TradeOtherAdd(it Item, count int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x21)
+		w.WriteH(1)
+		writeTradeItem(w, it, count)
+	})
+}
+
+func SendTradeDone(ok bool) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x22)
+		if ok {
+			w.WriteD(1)
+		} else {
+			w.WriteD(0)
+		}
+	})
+}
+
+func TradePressOwnOk() []byte {
+	return gsWrite(func(w *packet.Writer) { w.WriteC(0x75) })
+}
+
+func TradePressOtherOk() []byte {
+	return gsWrite(func(w *packet.Writer) { w.WriteC(0x7C) })
+}
+
+const (
+	WarehousePrivate int16 = 1
+	WarehouseClan    int16 = 2
+)
+
+func WarehouseDepositList(adena int32, items []Item) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x41)
+		w.WriteH(int(WarehousePrivate))
+		w.WriteD(adena)
+		w.WriteH(len(items))
+		for _, it := range items {
+			writeWarehouseItem(w, it)
+		}
+	})
+}
+
+func WarehouseWithdrawList(adena int32, items []Item) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x42)
+		w.WriteH(int(WarehousePrivate))
+		w.WriteD(adena)
+		w.WriteH(len(items))
+		for _, it := range items {
+			writeWarehouseItem(w, it)
+		}
+	})
+}
+
+func FriendAddRequest(name string) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x7D)
+		w.WriteS(name)
+	})
+}
+
+func FriendAddRequestResult(accepted bool) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x77)
+		if accepted {
+			w.WriteD(1)
+		} else {
+			w.WriteD(0)
+		}
+	})
+}
+
+func FriendList(friends []Friend, online map[int32]bool) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0xFA)
+		w.WriteD(int32(len(friends)))
+		for _, f := range friends {
+			on := online[f.ObjectID]
+			w.WriteD(f.ObjectID)
+			w.WriteS(f.Name)
+			if on {
+				w.WriteD(1)
+				w.WriteD(f.ObjectID)
+			} else {
+				w.WriteD(0)
+				w.WriteD(0)
+			}
+		}
+	})
+}
+
+func L2Friend(action int32, name string, objectID int32, online bool) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0xFB)
+		w.WriteD(action)
+		w.WriteD(0)
+		w.WriteS(name)
+		if online {
+			w.WriteD(1)
+		} else {
+			w.WriteD(0)
+		}
+		w.WriteD(objectID)
+	})
+}
+
 func writePartyMember(w *packet.Writer, m *Character) {
 	w.WriteD(m.ObjectID)
 	w.WriteS(m.Name)

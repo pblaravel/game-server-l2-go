@@ -205,3 +205,26 @@ func TestShopAndPartyLayoutsMatchJava(t *testing.T) {
 	walkLayout(t, "PartySmallWindowDelete", PartySmallWindowDelete(p), "C"+"D"+"S")
 	walkLayout(t, "PartySmallWindowDeleteAll", PartySmallWindowDeleteAll(), "C")
 }
+
+func TestTradeWarehouseFriendLayoutsMatchJava(t *testing.T) {
+	it := Item{ObjectID: 1, ItemID: 57, Count: 10, Type1: 4, Type2: 4}
+	walkLayout(t, "SendTradeRequest", SendTradeRequest(7), "C"+"D")
+	walkLayout(t, "TradeStart", TradeStart(7, []Item{it}),
+		"C"+"D"+"H"+"H"+"DD"+"D"+"HH"+"D"+"HHH")
+	walkLayout(t, "TradeOwnAdd", TradeOwnAdd(it, 3),
+		"C"+"H"+"H"+"DD"+"D"+"HH"+"D"+"HHH")
+	walkLayout(t, "TradeOtherAdd", TradeOtherAdd(it, 3),
+		"C"+"H"+"H"+"DD"+"D"+"HH"+"D"+"HHH")
+	walkLayout(t, "SendTradeDone", SendTradeDone(true), "C"+"D")
+	walkLayout(t, "TradePressOwnOk", TradePressOwnOk(), "C")
+	walkLayout(t, "TradePressOtherOk", TradePressOtherOk(), "C")
+	walkLayout(t, "WarehouseDepositList", WarehouseDepositList(50, []Item{it}),
+		"C"+"H"+"D"+"H"+"H"+"DD"+"D"+"HH"+"D"+"HHH"+"D"+"Q")
+	walkLayout(t, "WarehouseWithdrawList", WarehouseWithdrawList(50, []Item{it}),
+		"C"+"H"+"D"+"H"+"H"+"DD"+"D"+"HH"+"D"+"HHH"+"D"+"Q")
+	walkLayout(t, "FriendAddRequest", FriendAddRequest("A"), "C"+"S")
+	walkLayout(t, "FriendAddRequestResult", FriendAddRequestResult(true), "C"+"D")
+	walkLayout(t, "FriendList", FriendList([]Friend{{ObjectID: 1, Name: "B"}}, map[int32]bool{1: true}),
+		"C"+"D"+"D"+"S"+"DD")
+	walkLayout(t, "L2Friend", L2Friend(1, "B", 1, true), "C"+"DD"+"S"+"DD")
+}

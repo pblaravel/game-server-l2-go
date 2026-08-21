@@ -30,6 +30,21 @@ const (
 	SMNotEnoughAdena        int32 = 279
 	SMWeightLimitExceeded   int32 = 422
 	SMExceededInputQty      int32 = 1036
+	SMRequestForTrade       int32 = 118
+	SMDeniedTradeRequest    int32 = 119
+	SMTradeSuccessful       int32 = 123
+	SMCanceledTrade         int32 = 124
+	SMAddedToFriends        int32 = 132
+	SMAlreadyTrading        int32 = 142
+	SMTargetIncorrect       int32 = 144
+	SMTargetNotFound        int32 = 145
+	SMCannotDestroyNumber   int32 = 163
+	SMCannotAddYourself     int32 = 165
+	SMNotEnoughAdenaFee     int32 = 281
+	SMNoItemInWarehouse     int32 = 282
+	SMJoinedAsFriend        int32 = 479
+	SMUserNotInFriendsList  int32 = 486
+	SMExchangeEnded         int32 = 1266
 )
 
 // StatusUpdate attribute ids from Java enums/StatusType.java.

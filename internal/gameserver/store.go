@@ -51,6 +51,12 @@ func cloneCharacter(ch *Character) *Character {
 	if ch.Shortcuts != nil {
 		cp.Shortcuts = append([]Shortcut(nil), ch.Shortcuts...)
 	}
+	if ch.Warehouse != nil {
+		cp.Warehouse = append([]Item(nil), ch.Warehouse...)
+	}
+	if ch.Friends != nil {
+		cp.Friends = append([]Friend(nil), ch.Friends...)
+	}
 	return &cp
 }
 

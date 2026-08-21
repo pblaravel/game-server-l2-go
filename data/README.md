@@ -16,3 +16,6 @@ Geodata, HTML dialogs and the disabled spawnlist are still not copied.
 
 The gameserver parses these on start. Character create grants **autoGet**
 skills only (`cost="0"` and `minLvl` ≤ level), same as Java.
+
+EtcItem `item_skill` entries (potions, Scroll of Escape) are used by `UseItem`.
+Warehouse keepers (`WarehouseKeeper`) open deposit/withdraw windows.

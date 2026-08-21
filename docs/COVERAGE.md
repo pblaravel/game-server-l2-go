@@ -2,13 +2,12 @@
 
 Reference trees: `reference/l2-unity-loginserver` (75 `.java`),
 `reference/l2-unity-gameserver` (2301 `.java`, ~339k lines).
-Go implementation: 58 non-test files, ~12k lines.
+Go implementation: 62 non-test files.
 
 The **wire API is the contract**: opcodes, packet layouts, Blowfish/RSA/GameCrypt,
 session keys, ports. Gameplay logic is ported from the Java sources wherever the
-data it needs is available; the XML/geodata datapack is **not vendored**
-(`reference/l2-unity-gameserver/gameserver/data/README.md`), which is what limits
-the remaining systems.
+data it needs is available. Skills, classes, items, NPCs, shops, teleports and
+restart points are vendored under `data/xml/`; geodata, HTML and quests are not.
 
 Packet layouts are checked by `internal/gameserver/layout_test.go`, which walks
 every server packet with the field sequence transcribed from its Java class.
@@ -71,7 +70,7 @@ brackets, age limit, test server, PvP server, max players).
 | Stat engine (HP/MP/CP, regen, PAtk/PDef/MAtk/MDef, accuracy, evasion, crit, attack/cast speed, run speed, weight limit, collision) | `Formulas`, `CreatureStatus`, `PlayerStatus`, `skills/funcs` | ported over the class XML tables |
 | Melee combat (hit/miss, critical, position and damage formulas, attack pacing, CP before HP) | `Formulas`, `model/actor/attack` | ported |
 | Exp/SP rewards, level difference decay, level up, auto-granted skills | `Monster.calculateExpAndSp`, `Player.addExpAndSp` | ported |
-| Death, respawn to the nearest town, revive restore | `Player.doDie`, `RequestRestartPoint` | ported (town list stands in for `RestartPointData`) |
+| Death, respawn to the nearest town, revive restore | `Player.doDie`, `RequestRestartPoint` | ported from `RestartPointData` |
 | Skill casting (MP cost, reuse, cast time, target and range checks) | `CreatureCast`, `L2Skill` | ported |
 | Skill effects and stat modifiers from the `<for>` blocks, stack type/order rules | `AbstractEffect`, `EffectList`, `skills/basefuncs` | ported for heal, mana heal, physical, magical and buff skills |
 | Monster AI (aggro range, chase, retaliation, chase abandon) | `model/actor/ai/type/AttackableAI` | ported |
@@ -85,9 +84,15 @@ brackets, age limit, test server, PvP server, max players).
 | Buy lists + buy/sell | `BuyListManager`, `RequestBuyItem`, `RequestSellItem` | ported |
 | Gatekeeper teleports | `TeleportData`, `Npc.onBypassFeedback` | ported (`goto` bypass) |
 | Restart points | `RestartPointData` | ported (town / race areas; no castle/clan hall) |
-| NPC talk HTML | `NpcHtmlMessage`, `RequestBypassToServer` | generated merchant/gatekeeper windows |
+| NPC talk HTML | `NpcHtmlMessage`, `RequestBypassToServer` | generated merchant/gatekeeper/warehouse windows |
 | Party invite / join / leave / kick | `RequestJoinParty` and `PartySmallWindow*` | ported |
 | Monster drops | `DropCategory` / `DropData` | ported (no spoil, items go to inventory) |
+| Player trade | `TradeRequest`, `TradeList` | ported (no private store) |
+| Private warehouse | `PcWarehouse`, `WarehouseKeeper` | ported (no clan/freight) |
+| Shortcuts register/delete | `RequestShortCutReg` / `RequestShortCutDel` | ported |
+| Destroy item | `RequestDestroyItem` | ported |
+| Item skills (potions, SOE) | `UseItem` + `item_skill` | ported (`RECALL` and HOT/buff skills) |
+| Friends | `RequestFriendInvite` and `FriendList` | ported (in-memory + SQL) |
 
 ## Game server — still not ported
 
@@ -101,7 +106,7 @@ subsystems built on top of it:
   `ObserverGroupData`, `AnnouncementData`, `AdminData`, `ScriptData`, `BoatData`
 - `GeoEngine`, pathfinding, zones, doors, `StaticObjectData`
 - Quests and `ScriptData` (343 quest files plus the monster AI script tree)
-- Multisell, recipes, warehouse, trade, private stores
+- Multisell, recipes, private stores, clan warehouse / freight
 - Clans, allies, wars, crests, command channel
 - Castle siege, clan hall, manor, Seven Signs, Festival, Olympiad, heroes
 - Community board, petitions, admin commands

@@ -97,8 +97,10 @@ type Character struct {
 	PaperdollObj                 [PaperCount]int32
 	PaperdollItem                [PaperCount]int32
 	Items                        []Item
+	Warehouse                    []Item
 	Skills                       []Skill
 	Shortcuts                    []Shortcut
+	Friends                      []Friend
 	MoveDirX                     int32
 	MoveDirY                     int32
 	VerticalVel                  int32
@@ -251,11 +253,18 @@ const (
 	ShortcutRecipe
 )
 
+// Friend is one row of Java RelationManager's friend list.
+type Friend struct {
+	ObjectID int32
+	Name     string
+}
+
 type NPC struct {
 	ObjectID     int32
 	NPCID        int32
 	Name         string
 	Title        string
+	Type         string
 	X, Y, Z      int32
 	SpawnX       int32
 	SpawnY       int32

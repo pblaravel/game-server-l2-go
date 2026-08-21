@@ -140,7 +140,10 @@ func RemoveItemCount(p *Character, objectID, count int32) bool {
 			return true
 		}
 		if p.Items[i].Equipped {
-			unequipSlot(p, paperdollForBodyPart(p.Items[i].BodyPart))
+			if slot := paperdollForBodyPart(p.Items[i].BodyPart); slot >= 0 {
+				unequipSlot(p, slot)
+			}
+			p.Items[i].Equipped = false
 		}
 		p.Items = append(p.Items[:i], p.Items[i+1:]...)
 		return true
@@ -230,6 +233,67 @@ func AddAdena(p *Character, amount int32, nextObjectID func() int32) {
 		return
 	}
 	AddItem(p, AdenaID, amount, nextObjectID)
+}
+
+func IsTradable(itemID int32) bool {
+	if tpl := GetItem(itemID); tpl != nil {
+		return tpl.Tradable && tpl.Type2 != Type2Quest
+	}
+	return itemID == AdenaID
+}
+
+func IsDestroyable(itemID int32) bool {
+	if itemID == AdenaID {
+		return true
+	}
+	if tpl := GetItem(itemID); tpl != nil {
+		return tpl.Destroyable && tpl.Type2 != Type2Quest
+	}
+	return true
+}
+
+// moveItem is Java ItemContainer.transferItem between two bags of the same owner.
+func moveItem(from, to *[]Item, objectID, count int32, destLoc string, nextObjectID func() int32) bool {
+	if from == nil || to == nil || count <= 0 {
+		return false
+	}
+	srcIdx := -1
+	for i := range *from {
+		if (*from)[i].ObjectID == objectID {
+			srcIdx = i
+			break
+		}
+	}
+	if srcIdx < 0 {
+		return false
+	}
+	src := &(*from)[srcIdx]
+	if src.Equipped || count > src.Count {
+		return false
+	}
+	moved := *src
+	moved.Equipped = false
+	moved.Loc = destLoc
+	moved.LocData = 0
+	moved.Count = count
+	if src.Count > count {
+		src.Count -= count
+		if isStackable(src.ItemID) && nextObjectID != nil {
+			moved.ObjectID = nextObjectID()
+		}
+	} else {
+		*from = append((*from)[:srcIdx], (*from)[srcIdx+1:]...)
+	}
+	if isStackable(moved.ItemID) {
+		for i := range *to {
+			if (*to)[i].ItemID == moved.ItemID {
+				(*to)[i].Count += moved.Count
+				return true
+			}
+		}
+	}
+	*to = append(*to, moved)
+	return true
 }
 
 func IsSellable(itemID int32) bool {

@@ -38,7 +38,8 @@ func (s *Server) openNpcWindow(c *GameClient, npc *NPC) {
 	}
 	lists := BuyListsForNPC(npc.NPCID)
 	teles := TeleportsForNPC(npc.NPCID)
-	if len(lists) == 0 && len(teles) == 0 {
+	wh := isWarehouseNPC(npc)
+	if len(lists) == 0 && len(teles) == 0 && !wh {
 		c.Send(ActionFailed())
 		return
 	}
@@ -48,6 +49,10 @@ func (s *Server) openNpcWindow(c *GameClient, npc *NPC) {
 		fmt.Fprintf(&b, "%s<br>%s<br><br>", npc.Name, npc.Title)
 	} else {
 		fmt.Fprintf(&b, "%s<br><br>", npc.Name)
+	}
+	if wh {
+		fmt.Fprintf(&b, "<a action=\"bypass -h npc_%d_DepositP\">Deposit</a><br>", npc.ObjectID)
+		fmt.Fprintf(&b, "<a action=\"bypass -h npc_%d_WithdrawP\">Withdraw</a><br>", npc.ObjectID)
 	}
 	for i, list := range lists {
 		label := "Buy"
@@ -139,6 +144,10 @@ func (s *Server) onNpcBypass(c *GameClient, cmd string) {
 		}
 		idx, _ := strconv.Atoi(fields[1])
 		s.doNpcTeleport(c, npc, idx)
+	case "depositp":
+		s.showWarehouseDeposit(c, npc)
+	case "withdrawp":
+		s.showWarehouseWithdraw(c, npc)
 	default:
 		c.Send(ActionFailed())
 	}

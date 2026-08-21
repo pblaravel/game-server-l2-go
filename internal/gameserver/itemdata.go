@@ -52,23 +52,28 @@ const (
 
 // ItemTemplate is the Java Item / Weapon / Armor / EtcItem row.
 type ItemTemplate struct {
-	ID        int32
-	Name      string
-	Kind      string // Weapon, Armor, EtcItem
-	Weight    int32
-	Price     int32
-	BodyPart  int32
-	Stackable bool
-	Sellable  bool
-	Type1     int16
-	Type2     int16
-	PAtk      int32
-	MAtk      int32
-	PDef      int32
-	MDef      int32
-	PAtkSpd   int32
-	CritRate  float64
-	AtkRange  int32
+	ID          int32
+	Name        string
+	Kind        string // Weapon, Armor, EtcItem
+	Weight      int32
+	Price       int32
+	BodyPart    int32
+	Stackable   bool
+	Sellable    bool
+	Type1       int16
+	Type2       int16
+	PAtk        int32
+	MAtk        int32
+	PDef        int32
+	MDef        int32
+	PAtkSpd     int32
+	CritRate    float64
+	AtkRange    int32
+	SkillID     int32
+	SkillLevel  int32
+	Handler     string
+	Tradable    bool
+	Destroyable bool
 }
 
 var (
@@ -163,9 +168,28 @@ func parseItemTemplate(it xmlItemDef) ItemTemplate {
 		t.AtkRange = 40
 	}
 	t.Stackable = parseBoolDefault(vals["is_stackable"], false)
+	t.Tradable = parseBoolDefault(vals["is_tradable"], true)
+	t.Destroyable = parseBoolDefault(vals["is_destroyable"], true)
+	t.Handler = vals["handler"]
+	if id, lvl, ok := parseSkillRef(vals["item_skill"]); ok {
+		t.SkillID, t.SkillLevel = id, lvl
+	}
 	applyItemFuncs(&t, it.For)
 	t.Type1, t.Type2 = itemTypes(it.Type, t.ID, t.BodyPart)
 	return t
+}
+
+func parseSkillRef(val string) (int32, int32, bool) {
+	parts := strings.Split(val, "-")
+	if len(parts) < 2 {
+		return 0, 0, false
+	}
+	id, err1 := strconv.Atoi(strings.TrimSpace(parts[0]))
+	lvl, err2 := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err1 != nil || err2 != nil || id <= 0 {
+		return 0, 0, false
+	}
+	return int32(id), int32(lvl), true
 }
 
 func applyItemFuncs(t *ItemTemplate, block xmlFor) {
