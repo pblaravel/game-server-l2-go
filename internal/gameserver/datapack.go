@@ -182,11 +182,13 @@ func ApplyStarterKit(ch *Character, nextItemID func() int32) {
 		if it.Equipped {
 			loc = "PAPERDOLL"
 		}
-		ch.Items = append(ch.Items, Item{
+		item := Item{
 			ObjectID: oid, ItemID: it.ItemID, Count: it.Count,
 			Equipped: it.Equipped, Type1: it.Type1, Type2: it.Type2,
 			BodyPart: it.BodyPart, Slot: slot, Loc: loc, ManaLeft: -1,
-		})
+		}
+		ApplyItemTemplate(&item)
+		ch.Items = append(ch.Items, item)
 		if it.Equipped {
 			EquipPaperdoll(ch, it.BodyPart, it.ItemID, oid)
 		}
@@ -283,6 +285,7 @@ func (w *World) LoadDefaultSpawns() {
 	for _, n := range DefaultNewbieSpawns {
 		cp := n
 		cp.ObjectID = w.NextID()
+		ApplyNpcTemplate(&cp)
 		cp.NpcDefaults()
 		w.AddNPC(&cp)
 	}

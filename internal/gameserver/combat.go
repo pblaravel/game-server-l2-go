@@ -3,6 +3,7 @@ package gameserver
 import (
 	"math"
 	"math/rand"
+	"strings"
 	"time"
 )
 
@@ -296,21 +297,108 @@ func (s *Server) killNPC(c *GameClient, npc *NPC) {
 	go s.scheduleRespawn(npc)
 }
 
-// rewardKill is Java Attackable.calculateRewards limited to exp and SP.
+// rewardKill is Java Attackable.calculateRewards: exp/SP, optional party split, drops.
 func (s *Server) rewardKill(c *GameClient, npc *NPC) {
 	p := c.Player()
 	exp, sp := npcReward(npc, p.Level)
-	if exp <= 0 && sp <= 0 {
+	s.giveKillRewards(c, p, npc, exp, sp)
+	s.rollDrops(c, npc)
+}
+
+func (s *Server) giveKillRewards(c *GameClient, p *Character, npc *NPC, exp int64, sp int32) {
+	members := []*Character{p}
+	if pt := s.partyOf(p); pt != nil {
+		members = members[:0]
+		for _, m := range s.partyMembers(pt) {
+			if Distance2D(m.X, m.Y, npc.X, npc.Y) <= 1500 {
+				members = append(members, m)
+			}
+		}
+		if len(members) == 0 {
+			members = []*Character{p}
+		}
+	}
+	shareExp := exp / int64(len(members))
+	shareSP := sp / int32(len(members))
+	if shareExp <= 0 && shareSP <= 0 {
 		return
 	}
-	p.Exp += exp
-	p.SP += sp
-	c.Send(SystemMessage(SMEarnedExpAndSP, SysNumber(int32(exp)), SysNumber(sp)))
-	if s.checkLevelUp(c) {
+	for _, m := range members {
+		m.Exp += shareExp
+		m.SP += shareSP
+		mc := s.clientOf(m.ObjectID)
+		if mc == nil {
+			continue
+		}
+		mc.Send(SystemMessage(SMEarnedExpAndSP, SysNumber(int32(shareExp)), SysNumber(shareSP)))
+		if s.checkLevelUp(mc) {
+			continue
+		}
+		mc.Send(UserInfo(m))
+		_ = s.store.Update(mc.ctx(), m)
+	}
+}
+
+// rollDrops is Java Attackable.doItemDrop without spoil: one roll per category.
+func (s *Server) rollDrops(c *GameClient, npc *NPC) {
+	tpl := GetNpcTemplate(npc.NPCID)
+	if tpl == nil {
 		return
 	}
-	c.Send(UserInfo(p))
-	_ = s.store.Update(c.ctx(), p)
+	p := c.Player()
+	dropped := false
+	for _, cat := range tpl.Drops {
+		if strings.EqualFold(cat.Type, "SPOIL") {
+			continue
+		}
+		if cat.Chance <= 0 || rndDouble()*100 > cat.Chance {
+			continue
+		}
+		drop := pickDrop(cat.Drops)
+		if drop == nil {
+			continue
+		}
+		cnt := drop.Min
+		if drop.Max > drop.Min {
+			cnt = drop.Min + int32(rndDouble()*float64(drop.Max-drop.Min+1))
+		}
+		if cnt <= 0 {
+			continue
+		}
+		AddItem(p, drop.ItemID, cnt, s.nextItemID)
+		if cnt == 1 {
+			c.Send(SystemMessage(SMPickedUpS1, SysItem(drop.ItemID)))
+		} else {
+			c.Send(SystemMessage(SMPickedUpS2S1, SysItemCount(cnt), SysItem(drop.ItemID)))
+		}
+		dropped = true
+	}
+	if dropped {
+		c.Send(ItemList(p.Items, false))
+		s.sendWeightAndStats(c)
+	}
+}
+
+func pickDrop(drops []DropData) *DropData {
+	if len(drops) == 0 {
+		return nil
+	}
+	total := 0.0
+	for _, d := range drops {
+		total += d.Chance
+	}
+	if total <= 0 {
+		return &drops[0]
+	}
+	roll := rndDouble() * total
+	acc := 0.0
+	for i := range drops {
+		acc += drops[i].Chance
+		if roll <= acc {
+			return &drops[i]
+		}
+	}
+	return &drops[len(drops)-1]
 }
 
 // npcReward is Java Monster.calculateExpAndSp: above a five level gap the reward

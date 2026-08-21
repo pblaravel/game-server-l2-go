@@ -2,6 +2,7 @@ package gameserver
 
 import (
 	"math"
+	"strings"
 	"sync"
 	"time"
 )
@@ -148,6 +149,7 @@ type Character struct {
 	DestY            int32
 	DestZ            int32
 	Effects          []ActiveEffect
+	PartyID          int32
 }
 
 // AlikeDead is Java Creature.isAlikeDead (dead or fake death).
@@ -413,7 +415,15 @@ func (w *World) GetPlayer(id int32) *Character {
 func (w *World) GetPlayerByName(name string) *Character {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-	return w.byName[name]
+	if p := w.byName[name]; p != nil {
+		return p
+	}
+	for n, p := range w.byName {
+		if strings.EqualFold(n, name) {
+			return p
+		}
+	}
+	return nil
 }
 
 func (w *World) Players() []*Character {

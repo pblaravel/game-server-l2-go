@@ -75,7 +75,7 @@ func (s *Server) onAction(c *GameClient, r *packet.Reader) {
 		s.startAttack(c, npc)
 		return
 	}
-	c.Send(ActionFailed())
+	s.openNpcWindow(c, npc)
 }
 
 // onAttackRequest is Java clientpackets/combat/AttackRequest.
@@ -307,6 +307,9 @@ func (s *Server) onRestart(c *GameClient) {
 		c.Send(RestartResponse(false))
 		return
 	}
+	if pt := s.partyOf(p); pt != nil {
+		s.removeFromParty(pt, p, true)
+	}
 	_ = s.store.Update(c.ctx(), p)
 	s.Broadcast(DeleteObject(p.ObjectID), c)
 	s.world.RemovePlayer(p.ObjectID)
@@ -329,26 +332,12 @@ func (s *Server) onRestartPoint(c *GameClient, r *packet.Reader) {
 	if !p.Dead {
 		return
 	}
-	loc := nearestRespawn(p.X, p.Y, p.Z)
+	loc := NearestRestartLocation(p)
 	p.X, p.Y, p.Z = loc[0], loc[1], loc[2]
 	s.revive(c, RespawnHPPercent)
 	c.Send(TeleportToLocation(p.ObjectID, p.X, p.Y, p.Z))
 	c.Broadcast(TeleportToLocation(p.ObjectID, p.X, p.Y, p.Z))
 	c.logChange("respawned at (%d,%d,%d) hp=%.0f", p.X, p.Y, p.Z, p.CurHP)
-}
-
-// onSellItem / onBuyItem are Java clientpackets/item/RequestSellItem and
-// RequestBuyItem. Both need BuyListManager, which loads XML that is not vendored.
-func (s *Server) onSellItem(c *GameClient, r *packet.Reader) {
-	listID := r.ReadD()
-	log.Printf("[GAME] %s RequestSellItem list=%d ignored: no BuyListManager data", c.tag(), listID)
-	c.Send(ActionFailed())
-}
-
-func (s *Server) onBuyItem(c *GameClient, r *packet.Reader) {
-	listID := r.ReadD()
-	log.Printf("[GAME] %s RequestBuyItem list=%d ignored: no BuyListManager data", c.tag(), listID)
-	c.Send(ActionFailed())
 }
 
 // onAcquireSkillInfo is Java clientpackets/skill/RequestAcquireSkillInfo.

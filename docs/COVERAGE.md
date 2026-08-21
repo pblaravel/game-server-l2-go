@@ -2,7 +2,7 @@
 
 Reference trees: `reference/l2-unity-loginserver` (75 `.java`),
 `reference/l2-unity-gameserver` (2301 `.java`, ~339k lines).
-Go implementation: 51 non-test files, ~10.3k lines.
+Go implementation: 58 non-test files, ~12k lines.
 
 The **wire API is the contract**: opcodes, packet layouts, Blowfish/RSA/GameCrypt,
 session keys, ports. Gameplay logic is ported from the Java sources wherever the
@@ -80,24 +80,29 @@ brackets, age limit, test server, PvP server, max players).
 | Skill learning from the class tree | `PlayerData`, `RequestAcquireSkill` | ported |
 | Task managers (HP/MP/CP regen, effect expiry, PvP flag, combat stance, aggro scan) | `taskmanager/` | ported |
 | SkillTable + class skill trees | `SkillTable`, `PlayerData` | ported from `data/xml` |
+| ItemData XML | `ItemData`, `DocumentItem` | ported (`data/xml/items`) |
+| NpcData XML | `NpcData` | ported (`data/xml/npcs`); applied on spawn |
+| Buy lists + buy/sell | `BuyListManager`, `RequestBuyItem`, `RequestSellItem` | ported |
+| Gatekeeper teleports | `TeleportData`, `Npc.onBypassFeedback` | ported (`goto` bypass) |
+| Restart points | `RestartPointData` | ported (town / race areas; no castle/clan hall) |
+| NPC talk HTML | `NpcHtmlMessage`, `RequestBypassToServer` | generated merchant/gatekeeper windows |
+| Party invite / join / leave / kick | `RequestJoinParty` and `PartySmallWindow*` | ported |
+| Monster drops | `DropCategory` / `DropData` | ported (no spoil, items go to inventory) |
 
 ## Game server — still not ported
 
-These need the ~100 MB datapack (item/NPC XML, geodata, quests, buy lists) or the
+These need the remaining datapack (geodata, quests, HTML, spawnlist) or the
 subsystems built on top of it:
 
-- `ItemData` / `NpcData` XML: item and NPC stats fall back to the values needed by
-  the starter content (`internal/gameserver/stats.go`, `NPC.NpcDefaults`)
 - Remaining XML loaders Java starts in `GameServer.java`: `SkillTreeData`,
   `HennaData`, `MultisellData`, `RecipeData`, `ArmorSetData`, `FishData`,
   `SpellbookData`, `SoulCrystalData`, `AugmentationData`, `SummonItemData`,
-  `DoorData`, `TeleportData`, `RestartPointData`, `NewbieBuffData`,
-  `StaticObjectData`, `WalkerRouteData`, `ObserverGroupData`,
-  `AnnouncementData`, `AdminData`, `ScriptData`, `BoatData`
+  `DoorData`, `NewbieBuffData`, `StaticObjectData`, `WalkerRouteData`,
+  `ObserverGroupData`, `AnnouncementData`, `AdminData`, `ScriptData`, `BoatData`
 - `GeoEngine`, pathfinding, zones, doors, `StaticObjectData`
 - Quests and `ScriptData` (343 quest files plus the monster AI script tree)
-- Buy lists, multisell, recipes, warehouse, trade, private stores
-- Clans, allies, wars, crests, party and command channel
+- Multisell, recipes, warehouse, trade, private stores
+- Clans, allies, wars, crests, command channel
 - Castle siege, clan hall, manor, Seven Signs, Festival, Olympiad, heroes
 - Community board, petitions, admin commands
 - Boats, fishing, cursed weapons, augmentation, cubics, henna, macros, subclasses
@@ -119,7 +124,8 @@ load can persist state, but there is no runtime manager behind them.
 ## Seed data on a blank start
 
 Java SQL `INSERT`s exist only in five files. Almost all world content is XML
-under `data/xml/` (only skills and classes are vendored here).
+under `data/xml/` (skills, classes, items, NPCs, buy lists, teleports and
+restart points are vendored here; geodata and HTML are not).
 
 | Java source | Go seed | Applied on empty DB |
 |-------------|---------|---------------------|
@@ -132,7 +138,11 @@ under `data/xml/` (only skills and classes are vendored here).
 | PlayerLevelData XML | `player_levels` 1–81 | yes |
 | PlayerData class templates | `class_templates` + `data/xml/classes` + `class_skills` | yes (stats, HP/MP/CP and regen tables parsed at start) |
 | SkillTable XML | `data/xml/skills` → `skill_templates` | yes (effects and funcs parsed too) |
-| NpcData + SpawnManager XML | newbie `npc_templates` / `npc_spawns` | yes (Talking Island + race gates + starter mobs) |
+| ItemData XML | `data/xml/items` | yes (parsed at start; used for weight, price, equip stats) |
+| NpcData XML | `data/xml/npcs` | yes (parsed at start; applied to live NPCs) |
+| BuyListManager XML | `data/xml/buyLists.xml` | yes |
+| TeleportData / RestartPointData | `data/xml/teleports.xml`, `restartPointAreas.xml` | yes |
+| SpawnManager XML | newbie `npc_templates` / `npc_spawns` | yes (Talking Island + race gates + starter mobs; full spawnlist is disabled upstream) |
 
 How a zero-state server gets this data:
 

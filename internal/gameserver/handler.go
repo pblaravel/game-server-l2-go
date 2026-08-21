@@ -126,6 +126,16 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		s.onSellItem(c, r)
 	case 0x1F: // RequestBuyItem
 		s.onBuyItem(c, r)
+	case 0x21: // RequestBypassToServer
+		s.onBypassToServer(c, r)
+	case 0x29: // RequestJoinParty
+		s.onJoinParty(c, r)
+	case 0x2A: // RequestAnswerJoinParty
+		s.onAnswerJoinParty(c, r)
+	case 0x2B: // RequestWithdrawParty
+		s.onWithdrawParty(c)
+	case 0x2C: // RequestOustPartyMember
+		s.onOustPartyMember(c, r)
 	case 0x2F: // RequestMagicSkillUse
 		s.onMagicSkillUse(c, r)
 	case 0x30: // Appearing

@@ -189,3 +189,19 @@ func TestSystemMessageLayoutMatchesJava(t *testing.T) {
 	walkLayout(t, "SystemMessage-text", SystemMessage(SMLearnedSkill, SysText("abc")),
 		"C"+"D"+"D"+"D"+"S")
 }
+
+func TestShopAndPartyLayoutsMatchJava(t *testing.T) {
+	list := NpcBuyList{ID: 1, Items: []BuyProduct{{ItemID: 1, Price: 100}}}
+	walkLayout(t, "BuyList", BuyList(list, 50, true),
+		"C"+"C"+"D"+"D"+"H"+"H"+"DD"+"D"+"H"+"H"+"D"+"HHH"+"D")
+	walkLayout(t, "SellList", SellList(50, []Item{{ObjectID: 1, ItemID: 2, Count: 1}}, true),
+		"C"+"C"+"D"+"D"+"H"+"H"+"DD"+"D"+"HH"+"D"+"HHH"+"D")
+	walkLayout(t, "NpcHtmlMessage", NpcHtmlMessage(1, "<html></html>"), "C"+"D"+"S"+"D")
+	walkLayout(t, "AskJoinParty", AskJoinParty("A", 0), "C"+"S"+"D")
+	walkLayout(t, "JoinParty", JoinParty(1), "C"+"D")
+	p := &Character{ObjectID: 2, Name: "B", Level: 1}
+	walkLayout(t, "PartySmallWindowAdd", PartySmallWindowAdd(p, 1, 0),
+		"C"+"D"+"D"+"D"+"S"+rep("D", 10))
+	walkLayout(t, "PartySmallWindowDelete", PartySmallWindowDelete(p), "C"+"D"+"S")
+	walkLayout(t, "PartySmallWindowDeleteAll", PartySmallWindowDeleteAll(), "C")
+}

@@ -29,20 +29,34 @@ func FindDataDir() string {
 	return "data"
 }
 
-// LoadDatapack parses Java SkillTable + PlayerData XML.
+// LoadDatapack parses the Java XML loaders that are vendored under data/xml.
 func LoadDatapack(dataDir string) error {
 	if dataDir == "" {
 		dataDir = FindDataDir()
 	}
-	skillDir := filepath.Join(dataDir, "xml", "skills")
-	classDir := filepath.Join(dataDir, "xml", "classes")
-	if err := loadSkillXML(skillDir); err != nil {
+	if err := loadSkillXML(filepath.Join(dataDir, "xml", "skills")); err != nil {
 		return fmt.Errorf("skills: %w", err)
 	}
-	if err := loadClassXML(classDir); err != nil {
+	if err := loadClassXML(filepath.Join(dataDir, "xml", "classes")); err != nil {
 		return fmt.Errorf("classes: %w", err)
 	}
-	log.Printf("datapack: %d skill levels, %d class templates", SkillCount(), ClassCount())
+	if err := loadItemXML(filepath.Join(dataDir, "xml", "items")); err != nil {
+		log.Printf("datapack items: %v (starter item fallbacks stay in use)", err)
+	}
+	if err := loadNpcXML(filepath.Join(dataDir, "xml", "npcs")); err != nil {
+		log.Printf("datapack npcs: %v (newbie spawn fallbacks stay in use)", err)
+	}
+	if err := loadBuyListXML(filepath.Join(dataDir, "xml", "buyLists.xml")); err != nil {
+		log.Printf("datapack buylists: %v", err)
+	}
+	if err := loadTeleportXML(filepath.Join(dataDir, "xml", "teleports.xml")); err != nil {
+		log.Printf("datapack teleports: %v", err)
+	}
+	if err := loadRestartXML(filepath.Join(dataDir, "xml", "restartPointAreas.xml")); err != nil {
+		log.Printf("datapack restart points: %v", err)
+	}
+	log.Printf("datapack: %d skill levels, %d classes, %d items, %d npcs, %d buylists, %d teleport npcs, %d restart points",
+		SkillCount(), ClassCount(), ItemCount(), NpcTemplateCount(), BuyListCount(), TeleportListCount(), RestartPointCount())
 	return nil
 }
 
