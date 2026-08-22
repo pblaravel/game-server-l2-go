@@ -84,6 +84,9 @@ func EquipItem(p *Character, objectID int32) bool {
 	if item.BodyPart == 0x4000 { // two handed: the left hand must be free
 		unequipSlot(p, PaperLHand)
 	}
+	if slot == PaperRHand {
+		p.ChargedSS, p.ChargedSPS, p.ChargedBSS = false, false, false
+	}
 	item.Equipped = true
 	item.Loc = "PAPERDOLL"
 	item.LocData = int32(slot)
@@ -121,6 +124,7 @@ func unequipSlot(p *Character, slot Paperdoll) bool {
 	p.PaperdollObj[slot] = 0
 	if slot == PaperRHand {
 		p.AugmentRHand = 0
+		p.ChargedSS, p.ChargedSPS, p.ChargedBSS = false, false, false
 	}
 	if slot == PaperLHand {
 		p.AugmentLHand = 0

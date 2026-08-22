@@ -134,18 +134,22 @@ func CalcPhysicalAttackDamage(pAtk, pDef int32, shield int, crit, ss bool, posMu
 	return damage
 }
 
-// CalcMagicDamage is Java Formulas.calcMagicDam without shot and element modifiers.
-func CalcMagicDamage(mAtk, mDef int32, power float64, mcrit, ss bool) float64 {
+// CalcMagicDamage is Java Formulas.calcMagicDam: SPS doubles mAtk, BSS
+// quadruples it, then the square root is taken.
+func CalcMagicDamage(mAtk, mDef int32, power float64, mcrit, sps, bss bool) float64 {
 	defence := float64(mDef)
 	if defence <= 0 {
 		defence = 1
 	}
-	damage := 91 * math.Sqrt(float64(mAtk)) / defence * power
+	atk := float64(mAtk)
+	if bss {
+		atk *= 4
+	} else if sps {
+		atk *= 2
+	}
+	damage := 91 * math.Sqrt(atk) / defence * power
 	if mcrit {
 		damage *= 4
-	}
-	if ss {
-		damage *= 2
 	}
 	if damage < 1 {
 		damage = 1
@@ -257,10 +261,12 @@ func (s *Server) doAttackHit(c *GameClient, npc *NPC) {
 		if crit {
 			flags |= hitFlagCritical
 		}
+		ss := consumeSoulshot(p)
 		dmg := CalcPhysicalAttackDamage(p.PAtk, npc.PDef, shieldFailed, crit,
-			false, PosMul(behind, inFront, crit), RandomDamageMultiplier(10))
+			ss, PosMul(behind, inFront, crit), RandomDamageMultiplier(10))
 		damage = int32(dmg)
 	}
+	s.rechargeShots(c, true, false)
 
 	pkt := Attack(p.ObjectID, npc.ObjectID, damage, flags, p.X, p.Y, p.Z)
 	c.Send(pkt)
