@@ -56,6 +56,10 @@ func (s *Server) onAction(c *GameClient, r *packet.Reader) {
 	npc := s.world.GetNPC(targetID)
 	if npc == nil {
 		if other := s.world.GetPlayer(targetID); other != nil {
+			if c.target == targetID && other.inStoreMode() {
+				s.showPlayerStore(c, other)
+				return
+			}
 			c.target = targetID
 			c.Send(MyTargetSelected(targetID, 0))
 			return
@@ -155,6 +159,10 @@ func (s *Server) onUseItem(c *GameClient, r *packet.Reader) {
 		return
 	}
 	if item.BodyPart == 0 {
+		if shotKind(GetItem(item.ItemID)) != shotKindNone {
+			s.chargeShot(c, item, false)
+			return
+		}
 		if _, ok := GetEnchantScroll(item.ItemID); ok {
 			s.beginEnchant(c, item)
 			return
@@ -250,8 +258,8 @@ func (s *Server) onChangeMoveType(c *GameClient) {
 	c.Broadcast(pkt)
 }
 
-// onActionUse is Java clientpackets/combat/RequestActionUse. Pet, mount and
-// private store actions need subsystems that are not ported.
+// onActionUse is Java clientpackets/combat/RequestActionUse. Pet and mount
+// actions are not ported.
 func (s *Server) onActionUse(c *GameClient, r *packet.Reader) {
 	p := c.Player()
 	action := r.ReadD()
@@ -270,6 +278,12 @@ func (s *Server) onActionUse(c *GameClient, r *packet.Reader) {
 		s.setSitting(c, !p.Sitting)
 	case 1: // walk / run
 		s.onChangeMoveType(c)
+	case 10: // private store sell
+		s.openSellStoreManage(c, false)
+	case 28: // private store buy
+		s.openBuyStoreManage(c)
+	case 61: // package sell
+		s.openSellStoreManage(c, true)
 	default:
 		log.Printf("[GAME] %s unhandled action type %d", c.tag(), action)
 		c.Send(ActionFailed())

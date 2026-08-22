@@ -135,6 +135,16 @@ var clientOpcodeNames = map[byte]string{
 	0x6B: "RequestAcquireSkillInfo",
 	0x6C: "RequestAcquireSkill",
 	0x6D: "RequestRestartPoint",
+	0x73: "RequestPrivateStoreManageSell",
+	0x74: "SetPrivateStoreListSell",
+	0x76: "RequestPrivateStoreQuitSell",
+	0x77: "SetPrivateStoreMsgSell",
+	0x79: "RequestPrivateStoreBuy",
+	0x90: "RequestPrivateStoreManageBuy",
+	0x91: "SetPrivateStoreListBuy",
+	0x93: "RequestPrivateStoreQuitBuy",
+	0x94: "SetPrivateStoreMsgBuy",
+	0x96: "RequestPrivateStoreSell",
 	0x72: "RequestCrystallizeItem",
 	0xA7: "MultiSellChoose",
 	0xAC: "RequestRecipeBookOpen",
@@ -146,7 +156,9 @@ var clientOpcodeNames = map[byte]string{
 	0xD0: "ExPacket",
 }
 
-var clientExNames = map[int]string{}
+var clientExNames = map[int]string{
+	5: "RequestAutoSoulShot",
+}
 
 var serverOpcodeNames = map[byte]string{
 	0x00: "VersionCheck",
@@ -200,6 +212,12 @@ var serverOpcodeNames = map[byte]string{
 	0xD7: "RecipeItemMakeInfo",
 	0xE2: "HennaEquipList",
 	0xE4: "HennaInfo",
+	0x9A: "PrivateStoreManageListSell",
+	0x9B: "PrivateStoreListSell",
+	0x9C: "PrivateStoreMsgSell",
+	0xB7: "PrivateStoreManageListBuy",
+	0xB8: "PrivateStoreListBuy",
+	0xB9: "PrivateStoreMsgBuy",
 	0x5F: "RestartResponse",
 	0x61: "ValidateLocation",
 	0x64: "SystemMessage",

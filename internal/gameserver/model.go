@@ -154,6 +154,22 @@ type Character struct {
 	PartyID          int32
 	Recipes          []int32
 	Hennas           [3]int32
+	ChargedSS        bool
+	ChargedSPS       bool
+	ChargedBSS       bool
+	AutoShots        []int32
+	StoreItems       []StoreOffer
+	StoreMsg         string
+	StorePack        bool
+}
+
+// StoreOffer is one line of a Java TradeList used by private stores.
+type StoreOffer struct {
+	ObjectID int32
+	ItemID   int32
+	Count    int32
+	Price    int32
+	Enchant  int16
 }
 
 // AlikeDead is Java Creature.isAlikeDead (dead or fake death).
