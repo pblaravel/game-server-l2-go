@@ -80,6 +80,20 @@ const (
 	SMCantOperateStoreDuringCombat int32 = 1135
 	SMUseOfS1WillBeAuto            int32 = 1433
 	SMAutoUseOfS1Cancelled         int32 = 1434
+	SMS1HasBeenDeleted             int32 = 848
+	SMCantAlterRecipebook          int32 = 853
+	SMStuckTransportInFiveMinutes  int32 = 809
+	SMLocTalkingIsland             int32 = 910
+	SMTimeS1S2InTheDay             int32 = 927
+	SMTimeS1S2InTheNight           int32 = 928
+	SMPartyInformation             int32 = 1030
+	SMLootingFindersKeepers        int32 = 1031
+	SMLootingRandom                int32 = 1032
+	SMLootingRandomIncludeSpoil    int32 = 1033
+	SMLootingByTurn                int32 = 1034
+	SMLootingByTurnIncludeSpoil    int32 = 1035
+	SMOnlyLeaderCanTransferRights  int32 = 1399
+	SMPartyLeaderS1                int32 = 1611
 )
 
 const (

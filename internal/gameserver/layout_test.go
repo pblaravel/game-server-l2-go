@@ -269,3 +269,13 @@ func TestShotAndStoreLayoutsMatchJava(t *testing.T) {
 	walkLayout(t, "PrivateStoreListBuy-empty", PrivateStoreListBuy(p, p), "C"+rep("D", 3))
 	walkLayout(t, "PrivateStoreMsgBuy", PrivateStoreMsgBuy(p), "C"+"D"+"S")
 }
+
+func TestLeftoverLayoutsMatchJava(t *testing.T) {
+	walkLayout(t, "QuestList-empty", QuestList(), "C"+"H")
+	walkLayout(t, "ShowMiniMap", ShowMiniMap(1665, 0), "C"+"DD")
+	p := layoutTestPlayer()
+	h := Henna{SymbolID: 1, DyeID: 4445, Price: 10000, STR: 1}
+	walkLayout(t, "HennaItemInfo", HennaItemInfo(h, p), "C"+rep("D", 6)+rep("DC", 6))
+	walkLayout(t, "HennaUnequipList-empty", HennaUnequipList(p), "C"+rep("D", 3))
+	walkLayout(t, "HennaItemUnequipInfo", HennaItemUnequipInfo(h, p), "C"+rep("D", 6)+rep("DC", 6))
+}

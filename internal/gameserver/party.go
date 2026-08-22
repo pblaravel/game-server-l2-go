@@ -216,6 +216,33 @@ func (s *Server) onOustPartyMember(c *GameClient, r *packet.Reader) {
 	s.removeFromParty(pt, target, false)
 }
 
+func (s *Server) onChangePartyLeader(c *GameClient, r *packet.Reader) {
+	p := c.Player()
+	name := r.ReadS()
+	pt := s.partyOf(p)
+	if pt == nil || pt.LeaderID != p.ObjectID {
+		c.Send(SystemMessage(SMOnlyLeaderCanTransferRights))
+		return
+	}
+	target := s.world.GetPlayerByName(name)
+	if target == nil || target.PartyID != pt.ID || target.ObjectID == p.ObjectID {
+		c.Send(SystemMessage(SMTargetIncorrect))
+		return
+	}
+	s.parties.mu.Lock()
+	pt.LeaderID = target.ObjectID
+	s.parties.mu.Unlock()
+	members := s.partyMembers(pt)
+	for _, m := range members {
+		if cl := s.clientOf(m.ObjectID); cl != nil {
+			cl.Send(PartySmallWindowDeleteAll())
+			cl.Send(PartySmallWindowAll(m, members, pt.LeaderID, pt.Loot))
+			cl.Send(SystemMessage(SMPartyLeaderS1, SysText(target.Name)))
+		}
+	}
+	c.logChange("party leader -> %s", target.Name)
+}
+
 func (s *Server) removeFromParty(pt *Party, member *Character, left bool) {
 	s.parties.mu.Lock()
 	kept := pt.Members[:0]
