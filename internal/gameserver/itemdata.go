@@ -52,30 +52,31 @@ const (
 
 // ItemTemplate is the Java Item / Weapon / Armor / EtcItem row.
 type ItemTemplate struct {
-	ID          int32
-	Name        string
-	Kind        string // Weapon, Armor, EtcItem
-	Weight      int32
-	Price       int32
-	BodyPart    int32
-	Stackable   bool
-	Sellable    bool
-	Type1       int16
-	Type2       int16
-	PAtk        int32
-	MAtk        int32
-	PDef        int32
-	MDef        int32
-	PAtkSpd     int32
-	CritRate    float64
-	AtkRange    int32
-	SkillID     int32
-	SkillLevel  int32
-	Handler     string
-	Tradable    bool
-	Destroyable bool
-	Dropable    bool
-	CrystalType string
+	ID           int32
+	Name         string
+	Kind         string // Weapon, Armor, EtcItem
+	Weight       int32
+	Price        int32
+	BodyPart     int32
+	Stackable    bool
+	Sellable     bool
+	Type1        int16
+	Type2        int16
+	PAtk         int32
+	MAtk         int32
+	PDef         int32
+	MDef         int32
+	PAtkSpd      int32
+	CritRate     float64
+	AtkRange     int32
+	SkillID      int32
+	SkillLevel   int32
+	Handler      string
+	Tradable     bool
+	Destroyable  bool
+	Dropable     bool
+	CrystalType  string
+	CrystalCount int32
 }
 
 var (
@@ -174,6 +175,7 @@ func parseItemTemplate(it xmlItemDef) ItemTemplate {
 	t.Destroyable = parseBoolDefault(vals["is_destroyable"], true)
 	t.Dropable = parseBoolDefault(vals["is_dropable"], true)
 	t.CrystalType = vals["crystal_type"]
+	t.CrystalCount = atoi32(vals["crystal_count"])
 	t.Handler = vals["handler"]
 	if id, lvl, ok := parseSkillRef(vals["item_skill"]); ok {
 		t.SkillID, t.SkillLevel = id, lvl

@@ -141,6 +141,7 @@ func RecalcStats(p *Character) {
 			p.INT, p.WIT, p.MEN = tpl.INT, tpl.WIT, tpl.MEN
 		}
 	}
+	applyHennaStats(p)
 
 	weapon, armour := equippedStats(p)
 	atkSpd := basePAtkSpd

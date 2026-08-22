@@ -39,9 +39,11 @@ func (s *Server) openNpcWindow(c *GameClient, npc *NPC) {
 	lists := BuyListsForNPC(npc.NPCID)
 	teles := TeleportsForNPC(npc.NPCID)
 	instants := InstantTeleports(npc.NPCID)
+	ms := MultisellsForNPC(npc.NPCID)
 	wh := isWarehouseNPC(npc)
 	guide := isNewbieGuide(npc)
-	if len(lists) == 0 && len(teles) == 0 && len(instants) == 0 && !wh && !guide {
+	symbol := isSymbolMaker(npc)
+	if len(lists) == 0 && len(teles) == 0 && len(instants) == 0 && len(ms) == 0 && !wh && !guide && !symbol {
 		c.Send(ActionFailed())
 		return
 	}
@@ -58,6 +60,16 @@ func (s *Server) openNpcWindow(c *GameClient, npc *NPC) {
 	}
 	if guide {
 		fmt.Fprintf(&b, "<a action=\"bypass -h npc_%d_SupportMagic\">Newbie support magic</a><br>", npc.ObjectID)
+	}
+	if symbol {
+		fmt.Fprintf(&b, "<a action=\"bypass -h npc_%d_Draw\">Draw a symbol</a><br>", npc.ObjectID)
+	}
+	for i, list := range ms {
+		label := "Exchange"
+		if i > 0 {
+			label = fmt.Sprintf("Exchange %d", i+1)
+		}
+		fmt.Fprintf(&b, "<a action=\"bypass -h npc_%d_Multisell %d\">%s</a><br>", npc.ObjectID, list.ID, label)
 	}
 	for i, list := range lists {
 		label := "Buy"
@@ -165,9 +177,32 @@ func (s *Server) onNpcBypass(c *GameClient, cmd string) {
 		}
 		idx, _ := strconv.Atoi(fields[1])
 		s.doInstantTeleport(c, npc, idx)
+	case "multisell":
+		if len(fields) < 2 {
+			if lists := MultisellsForNPC(npc.NPCID); len(lists) > 0 {
+				s.showMultisell(c, lists[0])
+			}
+			return
+		}
+		id, _ := strconv.Atoi(fields[1])
+		s.showMultisell(c, GetMultisell(int32(id)))
+	case "draw":
+		c.Send(HennaEquipList(p))
 	default:
 		c.Send(ActionFailed())
 	}
+}
+
+func isSymbolMaker(npc *NPC) bool {
+	if npc == nil {
+		return false
+	}
+	name := strings.ToLower(npc.Name)
+	title := strings.ToLower(npc.Title)
+	if strings.Contains(name, "symbol maker") || strings.Contains(title, "symbol") {
+		return true
+	}
+	return npc.NPCID == 30098 || npc.NPCID == 31046 || npc.NPCID == 31047 || npc.NPCID == 31048 || npc.NPCID == 31049
 }
 
 func isNewbieGuide(npc *NPC) bool {

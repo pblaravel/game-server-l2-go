@@ -46,8 +46,9 @@ character create/delete/select/restore, enter world, movement (`0x01` legacy and
 `0x02` Unity), action and attack, target select and cancel, item list and reorder,
 equip/unequip/drop/use, social actions (`0x1B`), move type (`0x1C`), skill use
 (`0x2F`), skill list, action use (`0x45`: sit/stand, walk/run), restart (`0x46`),
-validate position, skill learning (`0x6B`/`0x6C`), respawn (`0x6D`) and the Java
-`DummyPacket` no-ops.
+validate position, enchant (`0x58`), skill learning (`0x6B`/`0x6C`), respawn
+(`0x6D`), crystallize (`0x72`), multisell (`0xA7`), recipe book (`0xAC`/`0xAE`/`0xAF`),
+henna (`0xBA`/`0xBC`/`0xBF`) and the Java `DummyPacket` no-ops.
 
 Server packets implemented with the Java field order: `VersionCheck`, `CharInfo`,
 `UserInfo`, `NpcInfo`, `CharSelectInfo`, `CharSelected`, `CharCreate*`,
@@ -58,7 +59,9 @@ Server packets implemented with the Java field order: `VersionCheck`, `CharInfo`
 `DeleteObject`, `TeleportToLocation`, `SocialAction`, `CreatureSay`,
 `SystemMessage` (with typed parameters), `MagicSkillUse`, `MagicSkillLaunched`,
 `MagicSkillCanceled`, `SetupGauge`, `AcquireSkillList/Info/Done`,
-`RestartResponse`, `AuthLoginFail`.
+`RestartResponse`, `AuthLoginFail`, `DropItem`, `SpawnItem`, `GetItem`,
+`MultiSellList`, `EnchantResult`, `ChooseInventoryItem`, `RecipeBookItemList`,
+`RecipeItemMakeInfo`, `HennaInfo`, `HennaEquipList`.
 
 The GS↔LS bridge sends the full Java `ServerStatus` block (status, clock,
 brackets, age limit, test server, PvP server, max players).
@@ -94,6 +97,12 @@ brackets, age limit, test server, PvP server, max players).
 | Destroy item | `RequestDestroyItem` | ported |
 | Item skills (potions, SOE) | `UseItem` + `item_skill` | ported (`RECALL` and HOT/buff skills) |
 | Friends | `RequestFriendInvite` and `FriendList` | ported (in-memory + SQL) |
+| Ground items / pickup | `RequestDropItem`, `ItemInstance.dropMe` / `onAction` | ported (`DropItem` / `GetItem`; no auto-despawn timer) |
+| Enchant | `RequestEnchantItem`, `AbstractEnchantPacket` | ported (Java scroll table and chances) |
+| Crystallize | `RequestCrystallizeItem` | ported (skill 248 + crystal_type / crystal_count) |
+| Multisell | `MultiSellList`, `MultiSellChoose` | ported (NPC `Multisell` bypass; no clan reputation) |
+| Recipe book / self-craft | `Recipes` handler, `RecipeItemMaker` | ported (learn from recipe item, `0xAC`/`0xAE`/`0xAF`) |
+| Henna | `RequestHennaEquip` / `Unequip` | ported (3 slots, stat bonuses; no dye shop HTML) |
 
 ## Game server — still not ported
 
@@ -102,11 +111,11 @@ still need the gameplay managers / packets on top of that data:
 
 - `GeoEngine`, pathfinding, live door/static-object spawn
 - Quests and the Java script tree (`scripts.xml` is only an index)
-- Multisell UI, recipe book / craft, private stores, clan warehouse / freight
+- Private stores, clan warehouse / freight
 - Clans, allies, wars, crests, command channel
 - Castle siege, clan hall, manor, Seven Signs, Festival, Olympiad, heroes
 - Community board, petitions, admin commands
-- Boats, fishing, cursed weapons, augmentation, cubics, henna, macros, subclasses
+- Boats, fishing, cursed weapons, augmentation, cubics, macros, subclasses
 - Debuff and status effects on NPCs (monsters have no effect list yet)
 - Handler registries (`handler/` item/chat/user-command/target handlers);
   Go still inlines most of this in `handler.go` / `handler_ingame.go`
@@ -142,9 +151,9 @@ consults the loaded table.
 | `InstantTeleportData` | `xml/instantTeleports.xml` | yes | yes | NPC `instant` bypass |
 | `HealSpsData` | `xml/healSps.xml` | yes | yes | heal amount correction |
 | `NewbieBuffData` | `xml/newbieBuffs.xml` | yes | yes | newbie guide `SupportMagic` |
-| `HennaData` | `xml/hennas.xml` | yes | yes | table loaded |
-| `MultisellData` | `xml/multisell/` | yes | yes | table loaded (no MultiSellList packet yet) |
-| `RecipeData` | `xml/recipes.xml` | yes | yes | table loaded |
+| `HennaData` | `xml/hennas.xml` | yes | yes | draw / remove + stat bonuses |
+| `MultisellData` | `xml/multisell/` | yes | yes | NPC exchange + `MultiSellChoose` |
+| `RecipeData` | `xml/recipes.xml` | yes | yes | learn + self-craft |
 | `ArmorSetData` | `xml/armorSets.xml` | yes | yes | set bonuses in `RecalcStats` |
 | `SpellbookData` | `xml/spellbooks.xml` | yes | yes | consumed on skill learn |
 | `SummonItemData` | `xml/summonItems.xml` | yes | yes | table loaded |
@@ -169,7 +178,7 @@ consults the loaded table.
 | `HtmCache` | `data/html/` | no | — | |
 | `GeoEngine` | `data/geodata/` | no | — | |
 
-Item XML now also stores `crystal_type` and `is_dropable`. Npc XML still skips
+Item XML now also stores `crystal_type`, `crystal_count` and `is_dropable`. Npc XML still skips
 `<skills>` and AI fields.
 
 ## Seed data on a blank start
