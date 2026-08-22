@@ -210,6 +210,41 @@ func ItemWeight(itemID int32) int32 {
 	}
 }
 
+func ItemCountOf(p *Character, itemID int32) int32 {
+	total := int32(0)
+	for _, it := range p.Items {
+		if it.ItemID == itemID {
+			total += it.Count
+		}
+	}
+	return total
+}
+
+func RemoveItemByID(p *Character, itemID, count int32) bool {
+	if count <= 0 {
+		return true
+	}
+	if ItemCountOf(p, itemID) < count {
+		return false
+	}
+	left := count
+	for left > 0 {
+		it := FindItemByID(p, itemID)
+		if it == nil {
+			return false
+		}
+		take := it.Count
+		if take > left {
+			take = left
+		}
+		if !RemoveItemCount(p, it.ObjectID, take) {
+			return false
+		}
+		left -= take
+	}
+	return true
+}
+
 func AdenaCount(p *Character) int32 {
 	if it := FindItemByID(p, AdenaID); it != nil {
 		return it.Count
@@ -240,6 +275,13 @@ func IsTradable(itemID int32) bool {
 		return tpl.Tradable && tpl.Type2 != Type2Quest
 	}
 	return itemID == AdenaID
+}
+
+func IsDropable(itemID int32) bool {
+	if tpl := GetItem(itemID); tpl != nil {
+		return tpl.Dropable && tpl.Type2 != Type2Quest
+	}
+	return true
 }
 
 func IsDestroyable(itemID int32) bool {

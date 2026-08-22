@@ -170,6 +170,8 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		s.onRestart(c)
 	case 0x48: // ValidatePosition
 		s.onValidatePosition(c, r)
+	case 0x58: // RequestEnchantItem
+		s.onEnchantItem(c, r)
 	case 0x59: // RequestDestroyItem
 		s.onDestroyItem(c, r)
 	case 0x5E: // RequestFriendInvite
@@ -186,6 +188,22 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		s.onAcquireSkill(c, r)
 	case 0x6D: // RequestRestartPoint
 		s.onRestartPoint(c, r)
+	case 0x72: // RequestCrystallizeItem
+		s.onCrystallizeItem(c, r)
+	case 0xA7: // MultiSellChoose
+		s.onMultiSellChoose(c, r)
+	case 0xAC: // RequestRecipeBookOpen
+		s.onRecipeBookOpen(c, r)
+	case 0xAE: // RequestRecipeItemMakeInfo
+		s.onRecipeItemMakeInfo(c, r)
+	case 0xAF: // RequestRecipeItemMakeSelf
+		s.onRecipeItemMakeSelf(c, r)
+	case 0xBA: // RequestHennaItemList
+		s.onHennaItemList(c, r)
+	case 0xBC: // RequestHennaEquip
+		s.onHennaEquip(c, r)
+	case 0xBF: // RequestHennaUnequip
+		s.onHennaUnequip(c, r)
 	default:
 		if s.cfg.PacketHandlerDebug || s.cfg.PrintReceivedPackets || s.cfg.Developer {
 			log.Printf("GS UNHANDLED %s opcode 0x%02X %s", c.tag(), op, hexPreview(data, 32))
@@ -394,10 +412,18 @@ func (s *Server) onEnterWorld(c *GameClient) {
 	for _, n := range s.world.NPCs() {
 		c.Send(NpcInfo(n))
 	}
+	s.sendNearbyGroundItems(c)
 	if p.Dead {
 		c.Send(Die(p.ObjectID, false, false, false, false, false))
 	}
 	s.Broadcast(CharInfo(p), c)
+	for _, a := range LoginAnnouncements() {
+		say := int32(10) // SayType.ANNOUNCEMENT
+		if a.Critical {
+			say = 23 // SayType.CRITICAL_ANNOUNCE
+		}
+		c.Send(CreatureSay(0, say, "", a.Message))
+	}
 	c.Send(ActionFailed())
 	_ = s.store.Update(c.ctx(), p)
 }

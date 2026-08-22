@@ -152,6 +152,8 @@ type Character struct {
 	DestZ            int32
 	Effects          []ActiveEffect
 	PartyID          int32
+	Recipes          []int32
+	Hennas           [3]int32
 }
 
 // AlikeDead is Java Creature.isAlikeDead (dead or fake death).
@@ -369,12 +371,24 @@ func (n *NPC) NpcDefaults() {
 // AlikeDead is Java Creature.isAlikeDead.
 func (n *NPC) AlikeDead() bool { return n.Dead || n.CurHP <= 0 }
 
+// GroundItem is Java ItemInstance while it is visible on the floor.
+type GroundItem struct {
+	ObjectID int32
+	ItemID   int32
+	Count    int32
+	Enchant  int16
+	X, Y, Z  int32
+	Dropper  int32
+	OwnerID  int32
+}
+
 type World struct {
 	mu       sync.RWMutex
 	objects  map[int32]any
 	players  map[int32]*Character
 	byName   map[string]*Character
 	npcs     map[int32]*NPC
+	items    map[int32]*GroundItem
 	nextID   int32
 	gameTime int32
 }
@@ -385,6 +399,7 @@ func NewWorld() *World {
 		players:  make(map[int32]*Character),
 		byName:   make(map[string]*Character),
 		npcs:     make(map[int32]*NPC),
+		items:    make(map[int32]*GroundItem),
 		nextID:   500000000,
 		gameTime: 0,
 	}

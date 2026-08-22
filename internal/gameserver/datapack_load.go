@@ -58,8 +58,10 @@ func LoadDatapack(dataDir string) error {
 	if err := loadRestartXML(filepath.Join(dataDir, "xml", "restartPointAreas.xml")); err != nil {
 		log.Printf("datapack restart points: %v", err)
 	}
-	log.Printf("datapack: %d skill levels, %d classes, %d items, %d npcs, %d buylists, %d teleport npcs, %d restart points, %d player levels",
-		SkillCount(), ClassCount(), ItemCount(), NpcTemplateCount(), BuyListCount(), TeleportListCount(), RestartPointCount(), PlayerLevelCount())
+	loadExtraDatapack(dataDir)
+	log.Printf("datapack: %d skill levels, %d classes, %d items, %d npcs, %d buylists, %d teleport npcs, %d restart points, %d player levels, %d recipes, %d armor sets, %d zones, %d doors, %d hennas, %d multisell",
+		SkillCount(), ClassCount(), ItemCount(), NpcTemplateCount(), BuyListCount(), TeleportListCount(), RestartPointCount(), PlayerLevelCount(),
+		RecipeCount(), ArmorSetCount(), ZoneCount(), DoorCount(), HennaCount(), MultisellCount())
 	return nil
 }
 

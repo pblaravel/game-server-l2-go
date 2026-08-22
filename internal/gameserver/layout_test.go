@@ -228,3 +228,27 @@ func TestTradeWarehouseFriendLayoutsMatchJava(t *testing.T) {
 		"C"+"D"+"D"+"S"+"DD")
 	walkLayout(t, "L2Friend", L2Friend(1, "B", 1, true), "C"+"DD"+"S"+"DD")
 }
+
+func TestItemSystemLayoutsMatchJava(t *testing.T) {
+	g := &GroundItem{ObjectID: 9, ItemID: 57, Count: 10, X: 1, Y: 2, Z: 3, Dropper: 7}
+	walkLayout(t, "DropItem", DropItem(g), "C"+rep("D", 9))
+	walkLayout(t, "SpawnItem", SpawnItem(g), "C"+rep("D", 8))
+	walkLayout(t, "GetItem", GetItemPacket(7, g), "C"+rep("D", 5))
+	walkLayout(t, "EnchantResult", EnchantResult(0), "CD")
+	walkLayout(t, "ChooseInventoryItem", ChooseInventoryItem(955), "CD")
+	p := layoutTestPlayer()
+	walkLayout(t, "RecipeBookItemList-empty", RecipeBookItemList(p, true), "C"+rep("D", 3))
+	p.Recipes = []int32{1}
+	walkLayout(t, "RecipeBookItemList", RecipeBookItemList(p, true), "C"+rep("D", 3)+"DD")
+	if pkt := RecipeItemMakeInfo(1, p, -1); pkt != nil {
+		walkLayout(t, "RecipeItemMakeInfo", pkt, "C"+rep("D", 5))
+	}
+	walkLayout(t, "HennaInfo-empty", HennaInfo(p), "C"+rep("C", 6)+"DD")
+	walkLayout(t, "HennaEquipList-empty", HennaEquipList(p), "C"+rep("D", 3))
+	tiny := &MultisellList{ID: 3, Entries: []MultisellEntry{{
+		Products:    []MultisellIngredient{{ItemID: 152, Count: 1}},
+		Ingredients: []MultisellIngredient{{ItemID: 4, Count: 1}, {ItemID: 57, Count: 10}},
+	}}}
+	walkLayout(t, "MultiSellList", MultiSellList(tiny, 0),
+		"C"+rep("D", 5)+rep("D", 3)+"C"+"HH"+"HDHDHDD"+rep("HHDHDD", 2))
+}

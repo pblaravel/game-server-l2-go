@@ -49,6 +49,10 @@ func (s *Server) onAction(c *GameClient, r *packet.Reader) {
 		c.Send(ActionFailed())
 		return
 	}
+	if s.world.GetGroundItem(targetID) != nil {
+		s.pickupGroundItem(c, targetID)
+		return
+	}
 	npc := s.world.GetNPC(targetID)
 	if npc == nil {
 		if other := s.world.GetPlayer(targetID); other != nil {
@@ -151,6 +155,14 @@ func (s *Server) onUseItem(c *GameClient, r *packet.Reader) {
 		return
 	}
 	if item.BodyPart == 0 {
+		if _, ok := GetEnchantScroll(item.ItemID); ok {
+			s.beginEnchant(c, item)
+			return
+		}
+		if GetRecipeByItem(item.ItemID) != nil {
+			s.learnRecipe(c, item)
+			return
+		}
 		s.useConsumable(c, item)
 		return
 	}
@@ -169,20 +181,49 @@ func (s *Server) onDropItem(c *GameClient, r *packet.Reader) {
 	objectID := r.ReadD()
 	count := r.ReadD()
 	x, y, z := r.ReadD(), r.ReadD(), r.ReadD()
+	if p.AlikeDead() {
+		return
+	}
 	item := FindItem(p, objectID)
-	if item == nil || count <= 0 || count > item.Count {
-		c.Send(ActionFailed())
-		return
-	}
-	if item.Equipped {
+	if item == nil || count == 0 || (!IsDropable(item.ItemID) && p.AccessLevel <= 0) {
 		c.Send(SystemMessage(SMCannotDiscardThisItem))
-		c.Send(ActionFailed())
 		return
 	}
-	RemoveItemCount(p, objectID, count)
-	c.logChange("dropped item=%d count=%d at (%d,%d,%d)", item.ItemID, count, x, y, z)
+	if count > item.Count {
+		c.Send(SystemMessage(SMCannotDiscardThisItem))
+		return
+	}
+	if count < 0 {
+		return
+	}
+	if !isStackable(item.ItemID) && count > 1 {
+		return
+	}
+	if s.tradeOf(p.ObjectID) != nil || p.PrivateStore != 0 {
+		c.Send(SystemMessage(SMAlreadyTrading))
+		return
+	}
+	if item.Augment != 0 {
+		c.Send(SystemMessage(SMCannotDiscardThisItem))
+		return
+	}
+	if Distance3D(p.X, p.Y, p.Z, x, y, z) > itemInteractRange {
+		c.Send(SystemMessage(SMCannotDiscardDistance))
+		return
+	}
+	if item.Equipped && (!isStackable(item.ItemID) || count >= item.Count) {
+		UnequipBodyPart(p, item.BodyPart)
+	}
+	g := s.dropPlayerItem(c, objectID, count, x, y, z)
+	if g == nil {
+		c.Send(SystemMessage(SMNotEnoughItems))
+		return
+	}
+	s.broadcastGroundItem(g, c)
 	c.Send(ItemList(p.Items, false))
 	s.sendWeightAndStats(c)
+	_ = s.store.Update(c.ctx(), p)
+	c.logChange("dropped item=%d count=%d at (%d,%d,%d) oid=%d", g.ItemID, g.Count, x, y, z, g.ObjectID)
 }
 
 // onSocialAction is Java clientpackets/RequestSocialAction.
@@ -347,7 +388,11 @@ func (s *Server) onAcquireSkillInfo(c *GameClient, r *packet.Reader) {
 		c.Send(ActionFailed())
 		return
 	}
-	c.Send(AcquireSkillInfo(node.ID, node.Level, node.Cost, 0, nil))
+	var reqs []SkillRequirement
+	if book := BookForSkill(skillID, skillLevel); book > 0 {
+		reqs = append(reqs, SkillRequirement{Type: 99, ItemID: book, Count: 1})
+	}
+	c.Send(AcquireSkillInfo(node.ID, node.Level, node.Cost, 0, reqs))
 }
 
 // onAcquireSkill is Java clientpackets/skill/RequestAcquireSkill.
@@ -368,6 +413,15 @@ func (s *Server) onAcquireSkill(c *GameClient, r *packet.Reader) {
 	if p.SP < node.Cost {
 		c.Send(SystemMessage(SMNotEnoughSP))
 		return
+	}
+	if book := BookForSkill(skillID, skillLevel); book > 0 {
+		it := FindItemByID(p, book)
+		if it == nil {
+			c.Send(SystemMessage(SMItemMissingToLearn))
+			c.Send(ActionFailed())
+			return
+		}
+		RemoveItemCount(p, it.ObjectID, 1)
 	}
 	p.SP -= node.Cost
 	AddOrUpgradeSkill(p, node)

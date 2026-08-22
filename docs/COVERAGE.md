@@ -2,13 +2,12 @@
 
 Reference trees: `reference/l2-unity-loginserver` (75 `.java`),
 `reference/l2-unity-gameserver` (2301 `.java`, ~339k lines).
-Go implementation: 63 non-test files.
+Go implementation: 67 non-test files.
 
 The **wire API is the contract**: opcodes, packet layouts, Blowfish/RSA/GameCrypt,
 session keys, ports. Gameplay logic is ported from the Java sources wherever the
-data it needs is available. Skills, classes, items, NPCs, shops, teleports,
-restart points and the player exp table are vendored under `data/xml/`. The rest
-of the Java datapack (geodata, HTML, quests, spawnlist, zones, doors, …) is not.
+data it needs is available. The Java `data/xml` tree is vendored and parsed
+except geodata, HTML, the disabled spawnlist and the Java quest script sources.
 
 Packet layouts are checked by `internal/gameserver/layout_test.go`, which walks
 every server packet with the field sequence transcribed from its Java class.
@@ -47,8 +46,9 @@ character create/delete/select/restore, enter world, movement (`0x01` legacy and
 `0x02` Unity), action and attack, target select and cancel, item list and reorder,
 equip/unequip/drop/use, social actions (`0x1B`), move type (`0x1C`), skill use
 (`0x2F`), skill list, action use (`0x45`: sit/stand, walk/run), restart (`0x46`),
-validate position, skill learning (`0x6B`/`0x6C`), respawn (`0x6D`) and the Java
-`DummyPacket` no-ops.
+validate position, enchant (`0x58`), skill learning (`0x6B`/`0x6C`), respawn
+(`0x6D`), crystallize (`0x72`), multisell (`0xA7`), recipe book (`0xAC`/`0xAE`/`0xAF`),
+henna (`0xBA`/`0xBC`/`0xBF`) and the Java `DummyPacket` no-ops.
 
 Server packets implemented with the Java field order: `VersionCheck`, `CharInfo`,
 `UserInfo`, `NpcInfo`, `CharSelectInfo`, `CharSelected`, `CharCreate*`,
@@ -59,7 +59,9 @@ Server packets implemented with the Java field order: `VersionCheck`, `CharInfo`
 `DeleteObject`, `TeleportToLocation`, `SocialAction`, `CreatureSay`,
 `SystemMessage` (with typed parameters), `MagicSkillUse`, `MagicSkillLaunched`,
 `MagicSkillCanceled`, `SetupGauge`, `AcquireSkillList/Info/Done`,
-`RestartResponse`, `AuthLoginFail`.
+`RestartResponse`, `AuthLoginFail`, `DropItem`, `SpawnItem`, `GetItem`,
+`MultiSellList`, `EnchantResult`, `ChooseInventoryItem`, `RecipeBookItemList`,
+`RecipeItemMakeInfo`, `HennaInfo`, `HennaEquipList`.
 
 The GS↔LS bridge sends the full Java `ServerStatus` block (status, clock,
 brackets, age limit, test server, PvP server, max players).
@@ -95,24 +97,25 @@ brackets, age limit, test server, PvP server, max players).
 | Destroy item | `RequestDestroyItem` | ported |
 | Item skills (potions, SOE) | `UseItem` + `item_skill` | ported (`RECALL` and HOT/buff skills) |
 | Friends | `RequestFriendInvite` and `FriendList` | ported (in-memory + SQL) |
+| Ground items / pickup | `RequestDropItem`, `ItemInstance.dropMe` / `onAction` | ported (`DropItem` / `GetItem`; no auto-despawn timer) |
+| Enchant | `RequestEnchantItem`, `AbstractEnchantPacket` | ported (Java scroll table and chances) |
+| Crystallize | `RequestCrystallizeItem` | ported (skill 248 + crystal_type / crystal_count) |
+| Multisell | `MultiSellList`, `MultiSellChoose` | ported (NPC `Multisell` bypass; no clan reputation) |
+| Recipe book / self-craft | `Recipes` handler, `RecipeItemMaker` | ported (learn from recipe item, `0xAC`/`0xAE`/`0xAF`) |
+| Henna | `RequestHennaEquip` / `Unequip` | ported (3 slots, stat bonuses; no dye shop HTML) |
 
 ## Game server — still not ported
 
-These need the remaining datapack (geodata, quests, HTML, spawnlist) or the
-subsystems built on top of it:
+XML tables for the remaining Java loaders are now vendored and parsed. These
+still need the gameplay managers / packets on top of that data:
 
-- Remaining XML loaders Java starts in `GameServer.java`: `SkillTreeData`,
-  `HennaData`, `MultisellData`, `RecipeData`, `ArmorSetData`, `FishData`,
-  `SpellbookData`, `SoulCrystalData`, `AugmentationData`, `SummonItemData`,
-  `DoorData`, `NewbieBuffData`, `StaticObjectData`, `WalkerRouteData`,
-  `ObserverGroupData`, `AnnouncementData`, `AdminData`, `ScriptData`, `BoatData`
-- `GeoEngine`, pathfinding, zones, doors, `StaticObjectData`
-- Quests and `ScriptData` (343 quest files plus the monster AI script tree)
-- Multisell, recipes, private stores, clan warehouse / freight
+- `GeoEngine`, pathfinding, live door/static-object spawn
+- Quests and the Java script tree (`scripts.xml` is only an index)
+- Private stores, clan warehouse / freight
 - Clans, allies, wars, crests, command channel
 - Castle siege, clan hall, manor, Seven Signs, Festival, Olympiad, heroes
 - Community board, petitions, admin commands
-- Boats, fishing, cursed weapons, augmentation, cubics, henna, macros, subclasses
+- Boats, fishing, cursed weapons, augmentation, cubics, macros, subclasses
 - Debuff and status effects on NPCs (monsters have no effect list yet)
 - Handler registries (`handler/` item/chat/user-command/target handlers);
   Go still inlines most of this in `handler.go` / `handler_ingame.go`
@@ -144,39 +147,39 @@ consults the loaded table.
 | `TeleportData` | `xml/teleports.xml` | yes | yes | gatekeeper `goto` |
 | `RestartPointData` | `xml/restartPointAreas.xml` | yes | yes | death / restart (no castle / clan hall) |
 | `PlayerLevelData` | `xml/playerLevels.xml` | yes | yes | exp table, karma / death-loss rows stored |
-| `SkillTreeData` | `xml/skillstrees/` | no | — | fishing / clan / enchant trees only |
-| `InstantTeleportData` | `xml/instantTeleports.xml` | no | — | |
-| `HealSpsData` | `xml/healSps.xml` | no | — | |
-| `NewbieBuffData` | `xml/newbieBuffs.xml` | no | — | |
-| `HennaData` | `xml/hennas.xml` | no | — | |
-| `MultisellData` | `xml/multisell/` | no | — | |
-| `RecipeData` | `xml/recipes.xml` | no | — | |
-| `ArmorSetData` | `xml/armorSets.xml` | no | — | |
-| `SpellbookData` | `xml/spellbooks.xml` | no | — | |
-| `SummonItemData` | `xml/summonItems.xml` | no | — | |
-| `SoulCrystalData` | `xml/soulCrystals.xml` | no | — | |
-| `AugmentationData` | `xml/augmentation/` | no | — | |
-| `FishData` | `xml/fish.xml` | no | — | |
-| `CursedWeaponManager` | `xml/cursedWeapons.xml` | no | — | |
-| `DoorData` | `xml/doors.xml` | no | — | |
-| `StaticObjectData` | `xml/staticObjects.xml` | no | — | |
-| `WalkerRouteData` | `xml/walkerRoutes.xml` | no | — | |
-| `SpawnManager` | `xml/spawnlist/` | no | — | upstream also has `spawnlist_disabled/` |
-| `ZoneManager` | `xml/zones/` | no | — | |
-| `AnnouncementData` | `xml/announcements.xml` | no | — | |
-| `AdminData` | `xml/accessLevels.xml`, `adminCommands.xml` | no | — | |
-| `BufferManager` | `xml/bufferSkills.xml` | no | — | |
-| `CastleManager` | `xml/castles.xml` | no | — | SQL seed has castle rows only |
-| `ClanHallManager` | `xml/clanHalls.xml`, `clanHallDeco.xml` | no | — | SQL seed has hall rows only |
-| `ManorAreaData` / `CastleManorManager` | `xml/manorAreas.xml`, `manors.xml` | no | — | |
-| `ObserverGroupData` | `xml/observerGroups.xml` | no | — | |
-| `BoatData` | `xml/boatRoutes.xml` | no | — | |
-| `ScriptData` | `xml/scripts.xml` + quest tree | no | — | |
+| `SkillTreeData` | `xml/skillstrees/` | yes | yes | tables loaded (fishing / clan / enchant) |
+| `InstantTeleportData` | `xml/instantTeleports.xml` | yes | yes | NPC `instant` bypass |
+| `HealSpsData` | `xml/healSps.xml` | yes | yes | heal amount correction |
+| `NewbieBuffData` | `xml/newbieBuffs.xml` | yes | yes | newbie guide `SupportMagic` |
+| `HennaData` | `xml/hennas.xml` | yes | yes | draw / remove + stat bonuses |
+| `MultisellData` | `xml/multisell/` | yes | yes | NPC exchange + `MultiSellChoose` |
+| `RecipeData` | `xml/recipes.xml` | yes | yes | learn + self-craft |
+| `ArmorSetData` | `xml/armorSets.xml` | yes | yes | set bonuses in `RecalcStats` |
+| `SpellbookData` | `xml/spellbooks.xml` | yes | yes | consumed on skill learn |
+| `SummonItemData` | `xml/summonItems.xml` | yes | yes | table loaded |
+| `SoulCrystalData` | `xml/soulCrystals.xml` | yes | yes | table loaded |
+| `AugmentationData` | `xml/augmentation/` | yes | yes | skills / stat tables loaded |
+| `FishData` | `xml/fish.xml` | yes | yes | table loaded |
+| `CursedWeaponManager` | `xml/cursedWeapons.xml` | yes | yes | table loaded |
+| `DoorData` | `xml/doors.xml` | yes | yes | templates loaded |
+| `StaticObjectData` | `xml/staticObjects.xml` | yes | yes | table loaded |
+| `WalkerRouteData` | `xml/walkerRoutes.xml` | yes | yes | table loaded |
+| `SpawnManager` | `xml/spawnlist/` | yes | yes | Talking Island makers; `spawnlist_disabled/` not copied |
+| `ZoneManager` | `xml/zones/` | yes | yes | `InPeaceZone` |
+| `AnnouncementData` | `xml/announcements.xml` | yes | yes | sent on enter world (file is empty upstream) |
+| `AdminData` | `xml/accessLevels.xml`, `adminCommands.xml` | yes | yes | tables loaded |
+| `BufferManager` | `xml/bufferSkills.xml` | yes | yes | table loaded |
+| `CastleManager` | `xml/castles.xml` | yes | yes | templates loaded (no siege manager) |
+| `ClanHallManager` | `xml/clanHalls.xml`, `clanHallDeco.xml` | yes | yes | templates loaded |
+| `ManorAreaData` / `CastleManorManager` | `xml/manorAreas.xml`, `manors.xml` | yes | yes | tables loaded |
+| `ObserverGroupData` | `xml/observerGroups.xml` | yes | yes | table loaded |
+| `BoatData` | `xml/boatRoutes.xml` | yes | yes | table loaded |
+| `ScriptData` | `xml/scripts.xml` + quest tree | partial | index only | quest Java sources not ported |
 | `HtmCache` | `data/html/` | no | — | |
 | `GeoEngine` | `data/geodata/` | no | — | |
 
-Item XML still skips `crystal_type`, `soulshots`, `is_dropable`, `weapon_type`,
-`armor_type`, `etcitem_type`. Npc XML still skips `<skills>` and AI fields.
+Item XML now also stores `crystal_type`, `crystal_count` and `is_dropable`. Npc XML still skips
+`<skills>` and AI fields.
 
 ## Seed data on a blank start
 

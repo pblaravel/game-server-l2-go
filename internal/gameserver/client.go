@@ -37,6 +37,9 @@ type GameClient struct {
 	reuse     sync.Map // skill id -> time.Time when it becomes usable again
 	lastHit   time.Time
 	lastPvP   time.Time
+
+	activeEnchant int32
+	multiSellID   int32
 }
 
 func NewGameClient(conn net.Conn, srv *Server) *GameClient {
