@@ -174,7 +174,7 @@ func (s *Server) onDropItem(c *GameClient, r *packet.Reader) {
 		c.Send(ActionFailed())
 		return
 	}
-	if item.Equipped {
+	if item.Equipped || !IsDropable(item.ItemID) {
 		c.Send(SystemMessage(SMCannotDiscardThisItem))
 		c.Send(ActionFailed())
 		return
@@ -347,7 +347,11 @@ func (s *Server) onAcquireSkillInfo(c *GameClient, r *packet.Reader) {
 		c.Send(ActionFailed())
 		return
 	}
-	c.Send(AcquireSkillInfo(node.ID, node.Level, node.Cost, 0, nil))
+	var reqs []SkillRequirement
+	if book := BookForSkill(skillID, skillLevel); book > 0 {
+		reqs = append(reqs, SkillRequirement{Type: 99, ItemID: book, Count: 1})
+	}
+	c.Send(AcquireSkillInfo(node.ID, node.Level, node.Cost, 0, reqs))
 }
 
 // onAcquireSkill is Java clientpackets/skill/RequestAcquireSkill.
@@ -368,6 +372,15 @@ func (s *Server) onAcquireSkill(c *GameClient, r *packet.Reader) {
 	if p.SP < node.Cost {
 		c.Send(SystemMessage(SMNotEnoughSP))
 		return
+	}
+	if book := BookForSkill(skillID, skillLevel); book > 0 {
+		it := FindItemByID(p, book)
+		if it == nil {
+			c.Send(SystemMessage(SMItemMissingToLearn))
+			c.Send(ActionFailed())
+			return
+		}
+		RemoveItemCount(p, it.ObjectID, 1)
 	}
 	p.SP -= node.Cost
 	AddOrUpgradeSkill(p, node)

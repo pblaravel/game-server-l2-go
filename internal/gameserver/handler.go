@@ -398,6 +398,13 @@ func (s *Server) onEnterWorld(c *GameClient) {
 		c.Send(Die(p.ObjectID, false, false, false, false, false))
 	}
 	s.Broadcast(CharInfo(p), c)
+	for _, a := range LoginAnnouncements() {
+		say := int32(10) // SayType.ANNOUNCEMENT
+		if a.Critical {
+			say = 23 // SayType.CRITICAL_ANNOUNCE
+		}
+		c.Send(CreatureSay(0, say, "", a.Message))
+	}
 	c.Send(ActionFailed())
 	_ = s.store.Update(c.ctx(), p)
 }

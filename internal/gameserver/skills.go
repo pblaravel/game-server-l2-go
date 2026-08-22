@@ -118,6 +118,7 @@ func activeFuncs(p *Character) []FuncTemplate {
 	for _, e := range p.Effects {
 		out = append(out, e.Funcs...)
 	}
+	out = append(out, armorSetFuncs(p)...)
 	return out
 }
 
@@ -312,6 +313,8 @@ func (s *Server) applySkill(c *GameClient, tpl *SkillTemplate, npc *NPC) {
 		amount := CalcHealAmount(tpl.Power, 1)
 		if strings.EqualFold(tpl.SkillType, "HEAL_PERCENT") {
 			amount = float64(p.MaxHP) * tpl.Power / 100
+		} else {
+			amount += CalculateHealSps(tpl, p.MAtk)
 		}
 		p.CurHP = math.Min(float64(p.MaxHP), p.CurHP+amount)
 		c.Send(StatusUpdate(p.ObjectID, [][2]int32{

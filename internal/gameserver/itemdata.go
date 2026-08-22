@@ -74,6 +74,8 @@ type ItemTemplate struct {
 	Handler     string
 	Tradable    bool
 	Destroyable bool
+	Dropable    bool
+	CrystalType string
 }
 
 var (
@@ -170,6 +172,8 @@ func parseItemTemplate(it xmlItemDef) ItemTemplate {
 	t.Stackable = parseBoolDefault(vals["is_stackable"], false)
 	t.Tradable = parseBoolDefault(vals["is_tradable"], true)
 	t.Destroyable = parseBoolDefault(vals["is_destroyable"], true)
+	t.Dropable = parseBoolDefault(vals["is_dropable"], true)
+	t.CrystalType = vals["crystal_type"]
 	t.Handler = vals["handler"]
 	if id, lvl, ok := parseSkillRef(vals["item_skill"]); ok {
 		t.SkillID, t.SkillLevel = id, lvl

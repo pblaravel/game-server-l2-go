@@ -26,6 +26,7 @@ const (
 	SMWaitingForReply       int32 = 164
 	SMSelectPartyTarget     int32 = 185
 	SMYouLeftParty          int32 = 200
+	SMItemMissingToLearn    int32 = 276
 	SMLearnedSkill          int32 = 277
 	SMNotEnoughAdena        int32 = 279
 	SMWeightLimitExceeded   int32 = 422

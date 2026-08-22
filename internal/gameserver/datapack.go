@@ -258,4 +258,11 @@ func (w *World) LoadDefaultSpawns() {
 		cp.NpcDefaults()
 		w.AddNPC(&cp)
 	}
+	for _, n := range XMLSpawns() {
+		cp := NPC{NPCID: n.NPCID, X: n.X, Y: n.Y, Z: n.Z}
+		cp.ObjectID = w.NextID()
+		ApplyNpcTemplate(&cp)
+		cp.NpcDefaults()
+		w.AddNPC(&cp)
+	}
 }

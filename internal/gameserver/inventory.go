@@ -242,6 +242,13 @@ func IsTradable(itemID int32) bool {
 	return itemID == AdenaID
 }
 
+func IsDropable(itemID int32) bool {
+	if tpl := GetItem(itemID); tpl != nil {
+		return tpl.Dropable && tpl.Type2 != Type2Quest
+	}
+	return true
+}
+
 func IsDestroyable(itemID int32) bool {
 	if itemID == AdenaID {
 		return true
