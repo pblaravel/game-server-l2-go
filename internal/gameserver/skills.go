@@ -337,16 +337,20 @@ func (s *Server) applySkill(c *GameClient, tpl *SkillTemplate, npc *NPC) {
 		crit := CalcCrit(p.Crit)
 		behind := IsBehind(p.X, p.Y, npc.X, npc.Y, npc.Heading)
 		inFront := IsInFrontOf(p.X, p.Y, npc.X, npc.Y, npc.Heading)
-		dmg := CalcPhysicalSkillDamage(p.PAtk, npc.PDef, tpl.Power, crit, false,
+		ss := consumeSoulshot(p)
+		dmg := CalcPhysicalSkillDamage(p.PAtk, npc.PDef, tpl.Power, crit, ss,
 			PosMul(behind, inFront, crit), RandomDamageMultiplier(10))
 		s.applySkillDamage(c, npc, int32(dmg), crit)
+		s.rechargeShots(c, true, false)
 	case "MDAM", "DRAIN":
 		if npc == nil {
 			return
 		}
 		mcrit := CalcCrit(int32(baseMCritHit * 10))
-		dmg := CalcMagicDamage(p.MAtk, npc.MDef, tpl.Power, mcrit, false)
+		sps, bss := consumeSpiritshot(p)
+		dmg := CalcMagicDamage(p.MAtk, npc.MDef, tpl.Power, mcrit, sps, bss)
 		s.applySkillDamage(c, npc, int32(dmg), mcrit)
+		s.rechargeShots(c, false, true)
 	case "RECALL":
 		loc := NearestRestartLocation(p)
 		s.teleportPlayer(c, loc[0], loc[1], loc[2])

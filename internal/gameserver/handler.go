@@ -59,8 +59,17 @@ func (s *Server) handle(c *GameClient, data []byte) {
 }
 
 func (s *Server) handleEx(c *GameClient, data []byte) {
-	// Extended Interlude opcodes are accepted and ignored unless implemented.
-	_ = data
+	if c.State() != StateInGame || c.Player() == nil {
+		return
+	}
+	r := packet.NewReader(data)
+	r.SkipOpcode()
+	switch r.ReadH() {
+	case 4: // RequestChangePartyLeader
+		s.onChangePartyLeader(c, r)
+	case 5: // RequestAutoSoulShot
+		s.onAutoSoulShot(c, r)
+	}
 }
 
 func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
@@ -156,6 +165,8 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		s.onShortCutReg(c, r)
 	case 0x35: // RequestShortCutDel
 		s.onShortCutDel(c, r)
+	case 0x36: // CannotMoveAnymore
+		s.onCannotMoveAnymore(c, r)
 	case 0x37: // RequestTargetCancel
 		s.onTargetCancel(c, r)
 	case 0x38: // Say2
@@ -182,6 +193,8 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		s.onFriendList(c)
 	case 0x61: // RequestFriendDel
 		s.onFriendDel(c, r)
+	case 0x63: // RequestQuestList
+		s.onQuestList(c)
 	case 0x6B: // RequestAcquireSkillInfo
 		s.onAcquireSkillInfo(c, r)
 	case 0x6C: // RequestAcquireSkill
@@ -190,20 +203,52 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		s.onRestartPoint(c, r)
 	case 0x72: // RequestCrystallizeItem
 		s.onCrystallizeItem(c, r)
+	case 0x73: // RequestPrivateStoreManageSell
+		s.onPrivateStoreManageSell(c, r)
+	case 0x74: // SetPrivateStoreListSell
+		s.onSetPrivateStoreListSell(c, r)
+	case 0x76: // RequestPrivateStoreQuitSell
+		s.quitPrivateStore(c)
+	case 0x77: // SetPrivateStoreMsgSell
+		s.onSetPrivateStoreMsgSell(c, r)
+	case 0x79: // RequestPrivateStoreBuy
+		s.onPrivateStoreBuy(c, r)
+	case 0x90: // RequestPrivateStoreManageBuy
+		s.openBuyStoreManage(c)
+	case 0x91: // SetPrivateStoreListBuy
+		s.onSetPrivateStoreListBuy(c, r)
+	case 0x93: // RequestPrivateStoreQuitBuy
+		s.quitPrivateStore(c)
+	case 0x94: // SetPrivateStoreMsgBuy
+		s.onSetPrivateStoreMsgBuy(c, r)
+	case 0x96: // RequestPrivateStoreSell
+		s.onPrivateStoreSell(c, r)
 	case 0xA7: // MultiSellChoose
 		s.onMultiSellChoose(c, r)
+	case 0xAA: // RequestUserCommand
+		s.onUserCommand(c, r)
 	case 0xAC: // RequestRecipeBookOpen
 		s.onRecipeBookOpen(c, r)
+	case 0xAD: // RequestRecipeBookDestroy
+		s.onRecipeBookDestroy(c, r)
 	case 0xAE: // RequestRecipeItemMakeInfo
 		s.onRecipeItemMakeInfo(c, r)
 	case 0xAF: // RequestRecipeItemMakeSelf
 		s.onRecipeItemMakeSelf(c, r)
 	case 0xBA: // RequestHennaItemList
 		s.onHennaItemList(c, r)
+	case 0xBB: // RequestHennaItemInfo
+		s.onHennaItemInfo(c, r)
 	case 0xBC: // RequestHennaEquip
 		s.onHennaEquip(c, r)
+	case 0xBD: // RequestHennaUnequipList
+		s.onHennaUnequipList(c, r)
+	case 0xBE: // RequestHennaUnequipInfo
+		s.onHennaUnequipInfo(c, r)
 	case 0xBF: // RequestHennaUnequip
 		s.onHennaUnequip(c, r)
+	case 0xCD: // RequestShowMiniMap
+		s.onShowMiniMap(c)
 	default:
 		if s.cfg.PacketHandlerDebug || s.cfg.PrintReceivedPackets || s.cfg.Developer {
 			log.Printf("GS UNHANDLED %s opcode 0x%02X %s", c.tag(), op, hexPreview(data, 32))

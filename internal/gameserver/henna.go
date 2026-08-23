@@ -133,9 +133,103 @@ func HennaEquipList(p *Character) []byte {
 	})
 }
 
+func HennaItemInfo(h Henna, p *Character) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0xe3)
+		w.WriteD(h.SymbolID)
+		w.WriteD(h.DyeID)
+		w.WriteD(hennaDrawAmount)
+		w.WriteD(h.Price)
+		w.WriteD(1)
+		w.WriteD(AdenaCount(p))
+		w.WriteD(p.INT)
+		w.WriteC(int(p.INT + h.INT))
+		w.WriteD(p.STR)
+		w.WriteC(int(p.STR + h.STR))
+		w.WriteD(p.CON)
+		w.WriteC(int(p.CON + h.CON))
+		w.WriteD(p.MEN)
+		w.WriteC(int(p.MEN + h.MEN))
+		w.WriteD(p.DEX)
+		w.WriteC(int(p.DEX + h.DEX))
+		w.WriteD(p.WIT)
+		w.WriteC(int(p.WIT + h.WIT))
+	})
+}
+
+func HennaUnequipList(p *Character) []byte {
+	used := make([]Henna, 0, 3)
+	for _, id := range p.Hennas {
+		if id == 0 {
+			continue
+		}
+		if h := GetHenna(id); h != nil {
+			used = append(used, *h)
+		}
+	}
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0xe5)
+		w.WriteD(AdenaCount(p))
+		w.WriteD(hennaMaxSlots - int32(len(used)))
+		w.WriteD(int32(len(used)))
+		for _, h := range used {
+			w.WriteD(h.SymbolID)
+			w.WriteD(h.DyeID)
+			w.WriteD(hennaRemoveAmount)
+			w.WriteD(h.Price / hennaRemoveAmount)
+			w.WriteD(1)
+		}
+	})
+}
+
+func HennaItemUnequipInfo(h Henna, p *Character) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0xe6)
+		w.WriteD(h.SymbolID)
+		w.WriteD(h.DyeID)
+		w.WriteD(hennaRemoveAmount)
+		w.WriteD(h.Price / hennaRemoveAmount)
+		w.WriteD(1)
+		w.WriteD(AdenaCount(p))
+		w.WriteD(p.INT)
+		w.WriteC(int(p.INT - h.INT))
+		w.WriteD(p.STR)
+		w.WriteC(int(p.STR - h.STR))
+		w.WriteD(p.CON)
+		w.WriteC(int(p.CON - h.CON))
+		w.WriteD(p.MEN)
+		w.WriteC(int(p.MEN - h.MEN))
+		w.WriteD(p.DEX)
+		w.WriteC(int(p.DEX - h.DEX))
+		w.WriteD(p.WIT)
+		w.WriteC(int(p.WIT - h.WIT))
+	})
+}
+
 func (s *Server) onHennaItemList(c *GameClient, r *packet.Reader) {
 	_ = r.ReadD()
 	c.Send(HennaEquipList(c.Player()))
+}
+
+func (s *Server) onHennaItemInfo(c *GameClient, r *packet.Reader) {
+	h := GetHenna(r.ReadD())
+	if h == nil {
+		return
+	}
+	c.Send(HennaItemInfo(*h, c.Player()))
+}
+
+func (s *Server) onHennaUnequipList(c *GameClient, r *packet.Reader) {
+	_ = r.ReadD()
+	c.Send(HennaUnequipList(c.Player()))
+}
+
+func (s *Server) onHennaUnequipInfo(c *GameClient, r *packet.Reader) {
+	h := GetHenna(r.ReadD())
+	if h == nil {
+		return
+	}
+	c.Send(HennaItemUnequipInfo(*h, c.Player()))
 }
 
 func (s *Server) onHennaEquip(c *GameClient, r *packet.Reader) {

@@ -252,3 +252,30 @@ func TestItemSystemLayoutsMatchJava(t *testing.T) {
 	walkLayout(t, "MultiSellList", MultiSellList(tiny, 0),
 		"C"+rep("D", 5)+rep("D", 3)+"C"+"HH"+"HDHDHDD"+rep("HHDHDD", 2))
 }
+
+func TestShotAndStoreLayoutsMatchJava(t *testing.T) {
+	walkLayout(t, "ExAutoSoulShot", ExAutoSoulShot(1835, 1), "C"+"H"+"DD")
+	p := layoutTestPlayer()
+	inv := sellableStoreItems(p)
+	itemSeq := "DDDDHHHDD"
+	walkLayout(t, "PrivateStoreManageListSell", PrivateStoreManageListSell(p, false),
+		"C"+rep("D", 4)+rep(itemSeq, len(inv))+"D")
+	walkLayout(t, "PrivateStoreListSell-empty", PrivateStoreListSell(p, p),
+		"C"+rep("D", 4))
+	walkLayout(t, "PrivateStoreMsgSell", PrivateStoreMsgSell(p), "C"+"D"+"S")
+	buyInvSeq := "DHDHDHD"
+	walkLayout(t, "PrivateStoreManageListBuy", PrivateStoreManageListBuy(p),
+		"C"+"DD"+"D"+rep(buyInvSeq, len(inv))+"D")
+	walkLayout(t, "PrivateStoreListBuy-empty", PrivateStoreListBuy(p, p), "C"+rep("D", 3))
+	walkLayout(t, "PrivateStoreMsgBuy", PrivateStoreMsgBuy(p), "C"+"D"+"S")
+}
+
+func TestLeftoverLayoutsMatchJava(t *testing.T) {
+	walkLayout(t, "QuestList-empty", QuestList(), "C"+"H")
+	walkLayout(t, "ShowMiniMap", ShowMiniMap(1665, 0), "C"+"DD")
+	p := layoutTestPlayer()
+	h := Henna{SymbolID: 1, DyeID: 4445, Price: 10000, STR: 1}
+	walkLayout(t, "HennaItemInfo", HennaItemInfo(h, p), "C"+rep("D", 6)+rep("DC", 6))
+	walkLayout(t, "HennaUnequipList-empty", HennaUnequipList(p), "C"+rep("D", 3))
+	walkLayout(t, "HennaItemUnequipInfo", HennaItemUnequipInfo(h, p), "C"+rep("D", 6)+rep("DC", 6))
+}

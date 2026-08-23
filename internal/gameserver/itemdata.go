@@ -77,6 +77,9 @@ type ItemTemplate struct {
 	Dropable     bool
 	CrystalType  string
 	CrystalCount int32
+	Soulshots    int32
+	Spiritshots  int32
+	Action       string
 }
 
 var (
@@ -176,6 +179,9 @@ func parseItemTemplate(it xmlItemDef) ItemTemplate {
 	t.Dropable = parseBoolDefault(vals["is_dropable"], true)
 	t.CrystalType = vals["crystal_type"]
 	t.CrystalCount = atoi32(vals["crystal_count"])
+	t.Soulshots = atoi32(vals["soulshots"])
+	t.Spiritshots = atoi32(vals["spiritshots"])
+	t.Action = vals["default_action"]
 	t.Handler = vals["handler"]
 	if id, lvl, ok := parseSkillRef(vals["item_skill"]); ok {
 		t.SkillID, t.SkillLevel = id, lvl

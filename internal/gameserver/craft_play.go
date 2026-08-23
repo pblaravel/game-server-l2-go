@@ -136,6 +136,30 @@ func (s *Server) onRecipeItemMakeSelf(c *GameClient, r *packet.Reader) {
 	s.craftRecipe(c, r.ReadD())
 }
 
+func (s *Server) onRecipeBookDestroy(c *GameClient, r *packet.Reader) {
+	p := c.Player()
+	id := r.ReadD()
+	if p.PrivateStore != StoreNone {
+		c.Send(SystemMessage(SMCantAlterRecipebook))
+		return
+	}
+	rec := GetRecipe(id)
+	if rec == nil || !HasRecipe(p, id) {
+		return
+	}
+	kept := p.Recipes[:0]
+	for _, rid := range p.Recipes {
+		if rid != id {
+			kept = append(kept, rid)
+		}
+	}
+	p.Recipes = append([]int32(nil), kept...)
+	c.Send(SystemMessage(SMS1HasBeenDeleted, SysItem(rec.ItemID)))
+	c.Send(RecipeBookItemList(p, rec.IsDwarven))
+	_ = s.store.Update(c.ctx(), p)
+	c.logChange("forgot recipe=%d", id)
+}
+
 func (s *Server) craftRecipe(c *GameClient, recipeID int32) {
 	p := c.Player()
 	rec := GetRecipe(recipeID)

@@ -2,7 +2,7 @@
 
 Reference trees: `reference/l2-unity-loginserver` (75 `.java`),
 `reference/l2-unity-gameserver` (2301 `.java`, ~339k lines).
-Go implementation: 67 non-test files.
+Go implementation: 75 non-test files.
 
 The **wire API is the contract**: opcodes, packet layouts, Blowfish/RSA/GameCrypt,
 session keys, ports. Gameplay logic is ported from the Java sources wherever the
@@ -45,10 +45,15 @@ Client opcodes follow Java `network/GamePacketHandler`: protocol version, auth,
 character create/delete/select/restore, enter world, movement (`0x01` legacy and
 `0x02` Unity), action and attack, target select and cancel, item list and reorder,
 equip/unequip/drop/use, social actions (`0x1B`), move type (`0x1C`), skill use
-(`0x2F`), skill list, action use (`0x45`: sit/stand, walk/run), restart (`0x46`),
-validate position, enchant (`0x58`), skill learning (`0x6B`/`0x6C`), respawn
-(`0x6D`), crystallize (`0x72`), multisell (`0xA7`), recipe book (`0xAC`/`0xAE`/`0xAF`),
-henna (`0xBA`/`0xBC`/`0xBF`) and the Java `DummyPacket` no-ops.
+(`0x2F`), skill list, action use (`0x45`: sit/stand, walk/run, private store
+10/28/61), restart (`0x46`), validate position, enchant (`0x58`), skill learning
+(`0x6B`/`0x6C`), respawn (`0x6D`), crystallize (`0x72`), private store sell/buy
+(`0x73`/`0x74`/`0x76`/`0x77`/`0x79`, `0x90`/`0x91`/`0x93`/`0x94`/`0x96`),
+CannotMoveAnymore (`0x36`), quest list (`0x63`), crystallize (`0x72`), private
+store sell/buy (`0x73`/`0x74`/`0x76`/`0x77`/`0x79`, `0x90`/`0x91`/`0x93`/`0x94`/`0x96`),
+user commands (`0xAA`), recipe book (`0xAC`/`0xAD`/`0xAE`/`0xAF`), henna
+(`0xBA`–`0xBF`), mini-map (`0xCD`), auto soulshot / party leader (`0xD0` + short 5/4)
+and the Java `DummyPacket` no-ops.
 
 Server packets implemented with the Java field order: `VersionCheck`, `CharInfo`,
 `UserInfo`, `NpcInfo`, `CharSelectInfo`, `CharSelected`, `CharCreate*`,
@@ -61,7 +66,10 @@ Server packets implemented with the Java field order: `VersionCheck`, `CharInfo`
 `MagicSkillCanceled`, `SetupGauge`, `AcquireSkillList/Info/Done`,
 `RestartResponse`, `AuthLoginFail`, `DropItem`, `SpawnItem`, `GetItem`,
 `MultiSellList`, `EnchantResult`, `ChooseInventoryItem`, `RecipeBookItemList`,
-`RecipeItemMakeInfo`, `HennaInfo`, `HennaEquipList`.
+`RecipeItemMakeInfo`, `HennaInfo`, `HennaEquipList`, `HennaItemInfo`,
+`HennaUnequipList`, `HennaItemUnequipInfo`, `ExAutoSoulShot`, `QuestList`,
+`ShowMiniMap`, `PrivateStoreManageListSell/ListSell/MsgSell`,
+`PrivateStoreManageListBuy/ListBuy/MsgBuy`.
 
 The GS↔LS bridge sends the full Java `ServerStatus` block (status, clock,
 brackets, age limit, test server, PvP server, max players).
@@ -89,9 +97,11 @@ brackets, age limit, test server, PvP server, max players).
 | Gatekeeper teleports | `TeleportData`, `Npc.onBypassFeedback` | ported (`goto` bypass) |
 | Restart points | `RestartPointData` | ported (town / race areas; no castle/clan hall) |
 | NPC talk HTML | `NpcHtmlMessage`, `RequestBypassToServer` | generated merchant/gatekeeper/warehouse windows |
-| Party invite / join / leave / kick | `RequestJoinParty` and `PartySmallWindow*` | ported |
+| Party invite / join / leave / kick / leader | `RequestJoinParty`, `RequestChangePartyLeader` | ported |
 | Monster drops | `DropCategory` / `DropData` | ported (no spoil, items go to inventory) |
-| Player trade | `TradeRequest`, `TradeList` | ported (no private store) |
+| Player trade | `TradeRequest`, `TradeList` | ported |
+| Soul / spirit / blessed shots | `SoulShots`, `SpiritShots`, `BlessedSpiritShots`, `RequestAutoSoulShot` | ported (consume on hit / magic; no pet or fishing shots) |
+| Private stores | `SetPrivateStoreList*`, `RequestPrivateStoreBuy/Sell`, ActionUse 10/28/61 | ported (sell / buy / package; no manufacture, no `NO_STORE` zone) |
 | Private warehouse | `PcWarehouse`, `WarehouseKeeper` | ported (no clan/freight) |
 | Shortcuts register/delete | `RequestShortCutReg` / `RequestShortCutDel` | ported |
 | Destroy item | `RequestDestroyItem` | ported |
@@ -101,8 +111,11 @@ brackets, age limit, test server, PvP server, max players).
 | Enchant | `RequestEnchantItem`, `AbstractEnchantPacket` | ported (Java scroll table and chances) |
 | Crystallize | `RequestCrystallizeItem` | ported (skill 248 + crystal_type / crystal_count) |
 | Multisell | `MultiSellList`, `MultiSellChoose` | ported (NPC `Multisell` bypass; no clan reputation) |
-| Recipe book / self-craft | `Recipes` handler, `RecipeItemMaker` | ported (learn from recipe item, `0xAC`/`0xAE`/`0xAF`) |
-| Henna | `RequestHennaEquip` / `Unequip` | ported (3 slots, stat bonuses; no dye shop HTML) |
+| Recipe book / self-craft | `Recipes` handler, `RecipeItemMaker` | ported (learn, craft, forget: `0xAC`/`0xAD`/`0xAE`/`0xAF`) |
+| Henna | `RequestHennaEquip` / `Unequip` / info / lists | ported (3 slots, stat bonuses; no dye shop HTML) |
+| User commands | `RequestUserCommand` | ported `/loc`, `/time`, `/unstuck` (instant), `/partyinfo` |
+| Quest list packet | `RequestQuestList` | empty `QuestList` (no quest scripts) |
+| Mini-map | `RequestShowMiniMap` | ported (`ShowMiniMap` 1665) |
 
 ## Game server — still not ported
 
@@ -111,13 +124,13 @@ still need the gameplay managers / packets on top of that data:
 
 - `GeoEngine`, pathfinding, live door/static-object spawn
 - Quests and the Java script tree (`scripts.xml` is only an index)
-- Private stores, clan warehouse / freight
+- Clan warehouse / freight
 - Clans, allies, wars, crests, command channel
 - Castle siege, clan hall, manor, Seven Signs, Festival, Olympiad, heroes
 - Community board, petitions, admin commands
 - Boats, fishing, cursed weapons, augmentation, cubics, macros, subclasses
 - Debuff and status effects on NPCs (monsters have no effect list yet)
-- Handler registries (`handler/` item/chat/user-command/target handlers);
+- Handler registries (`handler/` item/chat/target handlers);
   Go still inlines most of this in `handler.go` / `handler_ingame.go`
 - `ThreadPool`, `HtmCache`, `CrestCache`, `GlobalMemo`, `PlayerInfoTable`,
   server-crash tracking in `server_memo`
@@ -178,7 +191,7 @@ consults the loaded table.
 | `HtmCache` | `data/html/` | no | — | |
 | `GeoEngine` | `data/geodata/` | no | — | |
 
-Item XML now also stores `crystal_type`, `crystal_count` and `is_dropable`. Npc XML still skips
+Item XML now also stores `crystal_type`, `crystal_count`, `is_dropable`, `soulshots`, `spiritshots` and `default_action`. Npc XML still skips
 `<skills>` and AI fields.
 
 ## Seed data on a blank start
