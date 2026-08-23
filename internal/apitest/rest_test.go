@@ -250,8 +250,8 @@ func TestRESTAgainstGoMatchesJavaContract(t *testing.T) {
 	if int(ls["opcode"].(float64)) != 0x00 || int(ls["revision"].(float64)) != 0x0102 {
 		t.Fatalf("initls %v", ls)
 	}
-	if int(ls["rsaModLen"].(float64)) != 64 {
-		t.Fatalf("initls rsa %v", ls)
+	if n := int(ls["rsaModLen"].(float64)); n != 64 && n != 65 {
+		t.Fatalf("initls rsa %v (Java BigInteger is 64 or 65)", ls)
 	}
 
 	ver := post("/api/game/protocol", map[string]any{"version": 740})

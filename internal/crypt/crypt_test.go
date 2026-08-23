@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"math/big"
 	"testing"
 )
 
@@ -130,6 +131,19 @@ func TestGameCryptStream(t *testing.T) {
 	d.Decrypt(second)
 	if !bytes.Equal(second, orig) {
 		t.Fatalf("gamecrypt decrypt mismatch %v != %v", second, orig)
+	}
+}
+
+func TestJavaModulusBytesAddsSignByte(t *testing.T) {
+	n := new(big.Int).SetBytes([]byte{0x80, 0x00})
+	got := JavaModulusBytes(n)
+	if len(got) != 3 || got[0] != 0x00 || got[1] != 0x80 {
+		t.Fatalf("%x", got)
+	}
+	n = new(big.Int).SetBytes([]byte{0x7F, 0x00})
+	got = JavaModulusBytes(n)
+	if len(got) != 2 || got[0] != 0x7F {
+		t.Fatalf("%x", got)
 	}
 }
 

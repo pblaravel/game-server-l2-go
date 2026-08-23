@@ -52,6 +52,16 @@ func EncryptNoPadding(pub *rsa.PublicKey, plaintext []byte) ([]byte, error) {
 	return out, nil
 }
 
+// JavaModulusBytes is BigInteger.toByteArray(): unsigned bytes plus a leading
+// 0x00 when the high bit is set so Java treats the value as positive.
+func JavaModulusBytes(n *big.Int) []byte {
+	b := n.Bytes()
+	if len(b) > 0 && b[0]&0x80 != 0 {
+		return append([]byte{0x00}, b...)
+	}
+	return b
+}
+
 // StripLeadingZeros matches Java BlowFishKeyPacket key cleanup.
 func StripLeadingZeros(b []byte) []byte {
 	i := 0

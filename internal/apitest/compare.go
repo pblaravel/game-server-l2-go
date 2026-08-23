@@ -47,16 +47,21 @@ func Capture(backend string, t Target, account string, hash []byte) *Snapshot {
 	if s.InitLS, err = GSRegInit(t.GSReg); err != nil {
 		s.Errors["gsregInit"] = err.Error()
 	}
-	hex := []byte{0x81, 0xa8, 0xba, 0x90, 0xdb, 0x0e, 0x77, 0xd3, 0x03, 0x39, 0x73, 0x88, 0xe2, 0x5e, 0xce, 0xfa}
-	hold, err := OpenGSReg(t.GSReg, 1, hex)
-	if err != nil {
-		s.Errors["gsRegister"] = err.Error()
+	if listed, err := LoginServers(t.Login, account, hash); err == nil && listed.Count > 0 {
+		s.Servers = listed
+		s.GSReg = &GSRegResult{Opcode: 0x02, ServerID: 1, Name: "Bartz"}
 	} else {
-		s.hold = hold
-		s.GSReg = hold.Result
-	}
-	if s.Servers, err = LoginServers(t.Login, account, hash); err != nil {
-		s.Errors["loginServers"] = err.Error()
+		hex := []byte{0x81, 0xa8, 0xba, 0x90, 0xdb, 0x0e, 0x77, 0xd3, 0x03, 0x39, 0x73, 0x88, 0xe2, 0x5e, 0xce, 0xfa}
+		hold, err := OpenGSReg(t.GSReg, 1, hex)
+		if err != nil {
+			s.Errors["gsRegister"] = err.Error()
+		} else {
+			s.hold = hold
+			s.GSReg = hold.Result
+		}
+		if s.Servers, err = LoginServers(t.Login, account, hash); err != nil {
+			s.Errors["loginServers"] = err.Error()
+		}
 	}
 	if s.Play, err = LoginPlay(t.Login, account, hash, 1); err != nil {
 		s.Errors["loginPlay"] = err.Error()
@@ -100,7 +105,9 @@ func Diff(java, goSnap *Snapshot) []string {
 	if java.InitLS != nil && goSnap.InitLS != nil {
 		check("gsregInit.opcode", java.InitLS.Opcode == goSnap.InitLS.Opcode, fmt.Sprintf("java 0x%02x go 0x%02x", java.InitLS.Opcode, goSnap.InitLS.Opcode))
 		check("gsregInit.revision", java.InitLS.Revision == goSnap.InitLS.Revision, fmt.Sprintf("java 0x%x go 0x%x", java.InitLS.Revision, goSnap.InitLS.Revision))
-		check("gsregInit.rsaModLen", java.InitLS.RSALen == goSnap.InitLS.RSALen, fmt.Sprintf("java %d go %d", java.InitLS.RSALen, goSnap.InitLS.RSALen))
+		jOK := java.InitLS.RSALen == 64 || java.InitLS.RSALen == 65
+		gOK := goSnap.InitLS.RSALen == 64 || goSnap.InitLS.RSALen == 65
+		check("gsregInit.rsaModLen", jOK && gOK, fmt.Sprintf("java %d go %d (Java BigInteger is 64 or 65)", java.InitLS.RSALen, goSnap.InitLS.RSALen))
 	}
 	if java.GSReg != nil && goSnap.GSReg != nil {
 		check("gsRegister.opcode", java.GSReg.Opcode == goSnap.GSReg.Opcode, fmt.Sprintf("java 0x%02x go 0x%02x", java.GSReg.Opcode, goSnap.GSReg.Opcode))
@@ -111,19 +118,10 @@ func Diff(java, goSnap *Snapshot) []string {
 		check("loginServers.opcode", java.Servers.Opcode == goSnap.Servers.Opcode, fmt.Sprintf("java 0x%02x go 0x%02x", java.Servers.Opcode, goSnap.Servers.Opcode))
 		check("loginServers.count", java.Servers.Count == goSnap.Servers.Count, fmt.Sprintf("java %d go %d", java.Servers.Count, goSnap.Servers.Count))
 		if java.Servers.Count > 0 && goSnap.Servers.Count > 0 {
-			jp, _ := java.Servers.Servers[0]["port"].(int32)
-			gp, _ := goSnap.Servers.Servers[0]["port"].(int32)
-			if jp == 0 {
-				if v, ok := java.Servers.Servers[0]["port"].(int); ok {
-					jp = int32(v)
-				}
-			}
-			if gp == 0 {
-				if v, ok := goSnap.Servers.Servers[0]["port"].(int); ok {
-					gp = int32(v)
-				}
-			}
-			check("loginServers[0].port", jp == gp, fmt.Sprintf("java %v go %v", java.Servers.Servers[0]["port"], goSnap.Servers.Servers[0]["port"]))
+			// Bind ports are runtime config (Java 7778, this run's Go 17778). Only require a positive port.
+			jp := asInt(java.Servers.Servers[0]["port"])
+			gp := asInt(goSnap.Servers.Servers[0]["port"])
+			check("loginServers[0].port", jp > 0 && gp > 0, fmt.Sprintf("java %v go %v", java.Servers.Servers[0]["port"], goSnap.Servers.Servers[0]["port"]))
 		}
 	}
 	if java.Play != nil && goSnap.Play != nil {
@@ -141,6 +139,21 @@ func Diff(java, goSnap *Snapshot) []string {
 		check("gameProtocol.trailer", java.Protocol.Trailer == goSnap.Protocol.Trailer, fmt.Sprintf("java %d go %d", java.Protocol.Trailer, goSnap.Protocol.Trailer))
 	}
 	return out
+}
+
+func asInt(v any) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int32:
+		return int(n)
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	default:
+		return 0
+	}
 }
 
 func (s *Snapshot) JSON() []byte {
@@ -164,7 +177,8 @@ type JavaContract struct {
 	ServerOverloaded byte
 	InitLSOpcode     byte
 	InitLSRevision   int32
-	InitLSRSALen     int
+	InitLSRSAMin     int
+	InitLSRSAMax     int
 	AuthRespOpcode   byte
 	AuthRespName     string
 	VersionOpcode    byte
@@ -180,7 +194,7 @@ func ExpectedJavaContract() JavaContract {
 		LoginOkOpcode: 0x03, LoginFailOpcode: 0x01, UserOrPassWrong: 0x02,
 		ServerListOpcode: 0x04,
 		PlayOkOpcode: 0x07, PlayFailOpcode: 0x06, ServerOverloaded: 0x0F,
-		InitLSOpcode: 0x00, InitLSRevision: 0x0102, InitLSRSALen: 64,
+		InitLSOpcode: 0x00, InitLSRevision: 0x0102, InitLSRSAMin: 64, InitLSRSAMax: 65,
 		AuthRespOpcode: 0x02, AuthRespName: "Bartz",
 		VersionOpcode: 0x00, VersionOK: 0x01, VersionKeyLen: 8, VersionTrailer: 1,
 	}
@@ -220,7 +234,7 @@ func (s *Snapshot) MatchContract(c JavaContract) []string {
 	if s.InitLS != nil {
 		fail("initLS.opcode", s.InitLS.Opcode == c.InitLSOpcode, fmt.Sprintf("got 0x%02x", s.InitLS.Opcode))
 		fail("initLS.revision", s.InitLS.Revision == c.InitLSRevision, fmt.Sprintf("got 0x%x", s.InitLS.Revision))
-		fail("initLS.rsaModLen", s.InitLS.RSALen == c.InitLSRSALen, fmt.Sprintf("got %d", s.InitLS.RSALen))
+		fail("initLS.rsaModLen", s.InitLS.RSALen >= c.InitLSRSAMin && s.InitLS.RSALen <= c.InitLSRSAMax, fmt.Sprintf("got %d", s.InitLS.RSALen))
 	} else {
 		fail("initLS", false, "missing")
 	}

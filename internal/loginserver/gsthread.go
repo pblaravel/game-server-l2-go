@@ -44,7 +44,7 @@ func NewGameServerThread(conn net.Conn, ls *LoginServerController, gsc *GameServ
 
 func (t *GameServerThread) Serve() {
 	defer t.Disconnect()
-	mod := t.priv.PublicKey.N.Bytes()
+	mod := crypt.JavaModulusBytes(t.priv.PublicKey.N)
 	if err := t.Send(InitLSPacket(int32(t.ls.Config().Revision), mod)); err != nil {
 		return
 	}
