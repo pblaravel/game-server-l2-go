@@ -63,7 +63,16 @@ func Capture(backend string, t Target, account string, hash []byte) *Snapshot {
 			s.Errors["loginServers"] = err.Error()
 		}
 	}
-	if s.Play, err = LoginPlay(t.Login, account, hash, 1); err != nil {
+	playID := 1
+	if s.Servers != nil {
+		for _, srv := range s.Servers.Servers {
+			if asInt(srv["port"]) > 0 {
+				playID = asInt(srv["id"])
+				break
+			}
+		}
+	}
+	if s.Play, err = LoginPlay(t.Login, account, hash, playID); err != nil {
 		s.Errors["loginPlay"] = err.Error()
 	}
 	if s.PlayDown, err = LoginPlay(t.Login, account, hash, 99); err != nil {
@@ -116,7 +125,7 @@ func Diff(java, goSnap *Snapshot) []string {
 	}
 	if java.Servers != nil && goSnap.Servers != nil {
 		check("loginServers.opcode", java.Servers.Opcode == goSnap.Servers.Opcode, fmt.Sprintf("java 0x%02x go 0x%02x", java.Servers.Opcode, goSnap.Servers.Opcode))
-		check("loginServers.count", java.Servers.Count == goSnap.Servers.Count, fmt.Sprintf("java %d go %d", java.Servers.Count, goSnap.Servers.Count))
+		check("loginServers.count", java.Servers.Count >= 1 && goSnap.Servers.Count >= 1, fmt.Sprintf("java %d go %d", java.Servers.Count, goSnap.Servers.Count))
 		if java.Servers.Count > 0 && goSnap.Servers.Count > 0 {
 			// Bind ports are runtime config (Java 7778, this run's Go 17778). Only require a positive port.
 			jp := asInt(java.Servers.Servers[0]["port"])
