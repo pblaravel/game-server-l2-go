@@ -212,6 +212,10 @@ func (s *Server) startAttack(c *GameClient, npc *NPC) {
 		c.Send(ActionFailed())
 		return
 	}
+	if !Geo().CanSeeWorld(p.X, p.Y, p.Z, p.CollisionHeight, npc.X, npc.Y, npc.Z, npc.CollisionHeight) {
+		c.Send(ActionFailed())
+		return
+	}
 	// Java Attackable.addDamageHate makes the monster retaliate.
 	s.engageNPC(npc, c)
 	if c.attacking.Swap(true) {
@@ -229,6 +233,11 @@ func (s *Server) attackLoop(c *GameClient, npc *NPC) {
 			return
 		}
 		if Distance3D(p.X, p.Y, p.Z, npc.X, npc.Y, npc.Z) > float64(p.AttackRange)+p.CollisionRadius+npc.CollisionRadius+40 {
+			c.Send(ActionFailed())
+			p.InCombat = false
+			return
+		}
+		if !Geo().CanSeeWorld(p.X, p.Y, p.Z, p.CollisionHeight, npc.X, npc.Y, npc.Z, npc.CollisionHeight) {
 			c.Send(ActionFailed())
 			p.InCombat = false
 			return

@@ -9,13 +9,18 @@ import (
 	"sync"
 )
 
-// Java World tile constants used by RestartPointData.getRestartPoint.
+// Java World tile constants used by RestartPointData.getRestartPoint and GeoEngine.
 const (
 	tileXMin  = 16
+	tileXMax  = 26
 	tileYMin  = 10
+	tileYMax  = 25
 	tileSize  = 32768
 	worldXMin = (tileXMin - 20) * tileSize
+	worldXMax = (tileXMax-19)*tileSize - 1
 	worldYMin = (tileYMin - 18) * tileSize
+	worldYMax = (tileYMax-17)*tileSize - 1
+	worldZMax = 16410
 )
 
 // RestartPoint is Java model/restart/RestartPoint (town spawn list + map tiles).

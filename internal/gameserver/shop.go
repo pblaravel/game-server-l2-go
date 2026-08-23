@@ -263,6 +263,9 @@ func (s *Server) doNpcTeleport(c *GameClient, npc *NPC, index int) {
 
 func (s *Server) teleportPlayer(c *GameClient, x, y, z int32) {
 	p := c.Player()
+	if Geo().HasGeo(int(x), int(y)) {
+		z = Geo().Height(int(x), int(y), int(z))
+	}
 	s.Broadcast(DeleteObject(p.ObjectID), c)
 	p.X, p.Y, p.Z = x, y, z
 	pkt := TeleportToLocation(p.ObjectID, x, y, z)

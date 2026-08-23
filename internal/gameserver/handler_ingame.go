@@ -27,6 +27,8 @@ func (s *Server) onMoveBackwardToLocation(c *GameClient, r *packet.Reader) {
 		return
 	}
 	p.X, p.Y, p.Z = originX, originY, originZ
+	loc := Geo().ValidLocation(originX, originY, originZ, destX, destY, destZ)
+	destX, destY, destZ = loc.X, loc.Y, loc.Z
 	p.DestX, p.DestY, p.DestZ = destX, destY, destZ
 	p.Heading = headingTo(originX, originY, destX, destY)
 	c.logChange("move to (%d,%d,%d) from (%d,%d,%d)", destX, destY, destZ, originX, originY, originZ)
