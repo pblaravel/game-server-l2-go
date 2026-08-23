@@ -16,6 +16,21 @@ import (
 	"github.com/pblaravel/game-server-l2-go/internal/packet"
 )
 
+func TestInterludeInitBlowfishSurvivesXOR(t *testing.T) {
+	mod := bytes.Repeat([]byte{0x11}, 128)
+	bf := bytes.Repeat([]byte{0x22}, 16)
+	raw := loginserver.InterludeInitPacket(mod, bf, 42)
+	enc := append([]byte(nil), raw...)
+	lc := crypt.NewLoginCrypt(bf)
+	if err := lc.EncryptWithXORKey(enc, 0x12345678); err != nil {
+		t.Fatal(err)
+	}
+	_, _, _, got := decryptInterludeInit(t, enc)
+	if !bytes.Equal(got, bf) {
+		t.Fatalf("blowfish after Init XOR:\n got %x\nwant %x", got, bf)
+	}
+}
+
 func TestInterludeInitPacketLayout(t *testing.T) {
 	mod := bytes.Repeat([]byte{0x11}, 128)
 	bf := bytes.Repeat([]byte{0x22}, 16)

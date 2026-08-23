@@ -59,6 +59,9 @@ func InterludeInitPacket(publicKey, blowfishKey []byte, sessionID int32) []byte 
 		w.WriteD(0)
 		w.WriteB(bf)
 		w.WriteC(0)
+		// EncXORPass stores its key in the last 8 bytes; keep the payload
+		// (including the 16-byte Blowfish key) clear of that trailer.
+		w.WriteD(0)
 	})
 }
 

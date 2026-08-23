@@ -149,7 +149,7 @@ func (c *LoginClient) handle(data []byte) {
 	switch data[0] {
 	case ClientPing:
 		// Interlude RequestAuthLogin is also 0x00 but carries a 128-byte RSA block.
-		if len(data) >= 1+128 {
+		if c.ls.Config().InterludeClient && len(data) >= 1+128 {
 			c.onAuth(data)
 			return
 		}
@@ -162,8 +162,10 @@ func (c *LoginClient) handle(data []byte) {
 	case ClientRequestServerListInterlude:
 		c.onServerList(data)
 	case ClientRequestServerList:
-		// Interlude RequestServerLogin is 0x02 with serverId + two keys (12 bytes).
-		if len(data) >= 1+12 {
+		// Interlude RequestServerLogin is 0x02 (serverId, key1, key2). Java
+		// RequestServerList is the same opcode with only two keys; padding
+		// makes length useless, so the remap is gated on InterludeClient.
+		if c.ls.Config().InterludeClient {
 			c.onInterludeServerLogin(data)
 			return
 		}
