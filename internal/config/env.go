@@ -25,6 +25,9 @@ func ApplyLoginEnv(cfg *LoginConfig) {
 			cfg.LoginServerPort = n
 		}
 	}
+	if envBool(os.Getenv("INTERLUDE_CLIENT")) {
+		cfg.InterludeClient = true
+	}
 	if v := os.Getenv("GAMESERVER_REGISTER_PORT"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.GameServerPort = n

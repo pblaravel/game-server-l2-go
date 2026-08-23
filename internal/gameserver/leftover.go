@@ -13,6 +13,140 @@ func QuestList() []byte {
 	})
 }
 
+// NewCharacterSuccess is Java unused/NewCharacterSuccess (opcode 0x17 CharTemplates).
+func NewCharacterSuccess() []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x17)
+		ids := []int32{0, 10, 18, 25, 31, 38, 44, 49, 53}
+		w.WriteD(int32(len(ids)))
+		for _, id := range ids {
+			tpl := startingClasses[id]
+			w.WriteD(tpl.Race)
+			w.WriteD(id)
+			w.WriteD(0x46)
+			w.WriteD(tpl.STR)
+			w.WriteD(0x0a)
+			w.WriteD(0x46)
+			w.WriteD(tpl.DEX)
+			w.WriteD(0x0a)
+			w.WriteD(0x46)
+			w.WriteD(tpl.CON)
+			w.WriteD(0x0a)
+			w.WriteD(0x46)
+			w.WriteD(tpl.INT)
+			w.WriteD(0x0a)
+			w.WriteD(0x46)
+			w.WriteD(tpl.WIT)
+			w.WriteD(0x0a)
+			w.WriteD(0x46)
+			w.WriteD(tpl.MEN)
+			w.WriteD(0x0a)
+		}
+	})
+}
+
+func MacroList() []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0xE7)
+		w.WriteD(0)
+		w.WriteC(0)
+		w.WriteC(0)
+		w.WriteC(0)
+	})
+}
+
+func EtcStatusUpdate(p *Character) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0xF3)
+		w.WriteD(0) // charges
+		w.WriteD(0) // weight penalty
+		w.WriteD(0) // weapon
+		w.WriteD(0) // chat banned
+		w.WriteD(0) // danger area
+		w.WriteD(0) // expertise
+		if p != nil && p.CurrentWeight > p.WeightLimit && p.WeightLimit > 0 {
+			// keep zeros; client still gets the packet
+		}
+	})
+}
+
+func AbnormalStatusUpdate() []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x7F)
+		w.WriteH(0)
+	})
+}
+
+func ShowBoard(html string) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x6E)
+		w.WriteC(1)
+		w.WriteS("")
+		w.WriteS("")
+		w.WriteS("")
+		w.WriteS("")
+		w.WriteS(html)
+	})
+}
+
+func SkillCoolTime() []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0xC1)
+		w.WriteD(0)
+	})
+}
+
+func PledgeInfo(clanID int32, name, ally string) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x83)
+		w.WriteD(clanID)
+		w.WriteS(name)
+		w.WriteS(ally)
+	})
+}
+
+func ManagePledgePower(rank, action, privs int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x30)
+		w.WriteD(rank)
+		w.WriteD(action)
+		w.WriteD(privs)
+	})
+}
+
+func PackageSendableList(adena int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0xC3)
+		w.WriteD(adena)
+		w.WriteD(0)
+		w.WriteD(0)
+	})
+}
+
+func TargetUnselected(objectID, x, y, z int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x2A)
+		w.WriteD(objectID)
+		w.WriteD(x)
+		w.WriteD(y)
+		w.WriteD(z)
+	})
+}
+
+func ShortCutDel(slot int32) []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0x46)
+		w.WriteD(slot)
+	})
+}
+
+func ShopPreviewInfo() []byte {
+	return gsWrite(func(w *packet.Writer) {
+		w.WriteC(0xF0)
+		w.WriteD(0)
+	})
+}
+
 func ShowMiniMap(mapID, period int32) []byte {
 	return gsWrite(func(w *packet.Writer) {
 		w.WriteC(0x9d)

@@ -6,6 +6,9 @@ const (
 	ClientAuthRequest       byte = 0x01
 	ClientRequestServerList byte = 0x02
 	ClientRequestServerLogin byte = 0x03
+	// Interlude / Unity client (l2-unity Assets/Scripts/Networking).
+	ClientAuthGameGuard              byte = 0x07
+	ClientRequestServerListInterlude byte = 0x05
 )
 
 // Server opcodes (ServerPacketType).

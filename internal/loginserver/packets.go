@@ -27,6 +27,45 @@ func InitPacket(scrambledMod, blowfishKey []byte, sessionID int32) []byte {
 	})
 }
 
+// InterludeLoginProtocol is the Init.Protocol value the Unity client expects.
+const InterludeLoginProtocol int32 = 0x0000c621
+
+// InterludeInitPacket is the classic Interlude Init: sessionId, protocol,
+// 128-byte RSA modulus (no length prefix), GG challenge ×4, blowfish, 0x00.
+func InterludeInitPacket(publicKey, blowfishKey []byte, sessionID int32) []byte {
+	mod := publicKey
+	if len(mod) == 0x81 && mod[0] == 0x00 {
+		mod = mod[1:]
+	}
+	if len(mod) > 128 {
+		mod = mod[len(mod)-128:]
+	}
+	if len(mod) < 128 {
+		padded := make([]byte, 128)
+		copy(padded[128-len(mod):], mod)
+		mod = padded
+	}
+	bf := blowfishKey
+	if len(bf) > 16 {
+		bf = bf[:16]
+	}
+	return buildLS(ServerInit, func(w *packet.Writer) {
+		w.WriteD(sessionID)
+		w.WriteD(InterludeLoginProtocol)
+		w.WriteB(mod)
+		w.WriteD(0)
+		w.WriteD(0)
+		w.WriteD(0)
+		w.WriteD(0)
+		w.WriteB(bf)
+		w.WriteC(0)
+	})
+}
+
+func GGAuthPacket(response int32) []byte {
+	return buildLS(ServerGGAuth, func(w *packet.Writer) { w.WriteD(response) })
+}
+
 func LoginFailPacket(reason byte) []byte {
 	return buildLS(ServerLoginFail, func(w *packet.Writer) { w.WriteC(int(reason)) })
 }
@@ -146,6 +185,35 @@ type AuthCredentials struct {
 }
 
 func ParseAuthCredentials(decrypted []byte) (AuthCredentials, error) {
+	if looksLikeJavaAuth(decrypted) {
+		return parseJavaAuth(decrypted)
+	}
+	if c, err := parseInterludeAuth(decrypted); err == nil && c.Account != "" {
+		return c, nil
+	}
+	return parseJavaAuth(decrypted)
+}
+
+func looksLikeJavaAuth(b []byte) bool {
+	if len(b) < 3 {
+		return false
+	}
+	n := int(b[0])
+	if n < 1 || n > 14 || 1+n >= len(b) {
+		return false
+	}
+	if b[1+n] != 0 {
+		return false
+	}
+	for _, c := range b[1 : 1+n] {
+		if c < 33 || c > 126 {
+			return false
+		}
+	}
+	return true
+}
+
+func parseJavaAuth(decrypted []byte) (AuthCredentials, error) {
 	if len(decrypted) < 3 {
 		return AuthCredentials{}, errShort
 	}
@@ -160,6 +228,43 @@ func ParseAuthCredentials(decrypted []byte) (AuthCredentials, error) {
 		PassHashBytes: pass,
 		HashBase64:    base64.StdEncoding.EncodeToString(pass),
 	}, nil
+}
+
+// parseInterludeAuth reads account/password at offsets 79 and 93 of the RSA
+// plaintext (Unity client: ≤15 UTF-8 bytes each).
+func parseInterludeAuth(decrypted []byte) (AuthCredentials, error) {
+	if len(decrypted) < 108 {
+		return AuthCredentials{}, errShort
+	}
+	acc := cstring(decrypted[79:94])
+	pass := decrypted[93:]
+	if len(pass) > 15 {
+		pass = pass[:15]
+	}
+	for i, b := range pass {
+		if b == 0 {
+			pass = pass[:i]
+			break
+		}
+	}
+	acc = toLowerTrim(acc)
+	if acc == "" {
+		return AuthCredentials{}, errShort
+	}
+	return AuthCredentials{
+		Account:       acc,
+		PassHashBytes: append([]byte(nil), pass...),
+		HashBase64:    base64.StdEncoding.EncodeToString(pass),
+	}, nil
+}
+
+func cstring(b []byte) string {
+	for i, v := range b {
+		if v == 0 {
+			return string(b[:i])
+		}
+	}
+	return string(b)
 }
 
 func DecryptAuthRequest(data []byte, decrypt func([]byte) ([]byte, error)) (AuthCredentials, error) {

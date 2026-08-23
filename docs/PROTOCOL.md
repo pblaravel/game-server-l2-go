@@ -39,6 +39,23 @@ Every later packet uses the session Blowfish key + XOR checksum.
 
 Password is client-hashed; the server stores/compares Base64 of those bytes.
 
+### Interlude / Unity client (`server.client.interlude=true` or `INTERLUDE_CLIENT=1`)
+
+Same framing and Blowfish, but login opcodes follow `l2-unity` (protocol 746):
+
+| Dir | Opcode | Packet |
+|-----|--------|--------|
+| S→C | 0x00 | Init: sessionId, protocol `0x0000c621`, RSA-1024 (raw modulus, no scramble), GG×4, blowfish 16, `0x00` |
+| C→S | 0x07 | AuthGameGuard (sessionId, Gg0–3) |
+| S→C | 0x0B | GGAuth (response) |
+| C→S | 0x00 | RequestAuthLogin — 128-byte RSA PKCS1, account @79, password @93 (≤15 UTF-8 each) |
+| C→S | 0x05 | RequestServerList (sessionKey1/2) |
+| C→S | 0x02 | RequestServerLogin (serverId, sessionKey1/2) |
+
+`0x00` without a 128-byte RSA block is still Ping. Java AuthRequest `0x01` and Play `0x03` stay accepted so the Java fork keeps working.
+
+Game handshake: `ProtocolVersion(746)` → `VersionCheck` / InterludeKey `0x00`. `NewCharacter 0x0E` returns `CharTemplates 0x17`. `EnterWorld` pushes UserInfo, ItemList, SkillList, ShortCutInit, QuestList, HennaInfo, MacroList, FriendList, EtcStatus, AbnormalStatus.
+
 ## Login ↔ Game (default :9015)
 
 State: `CONNECTED → BF_CONNECTED → AUTHED`.

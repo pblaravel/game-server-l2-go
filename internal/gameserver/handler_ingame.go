@@ -294,13 +294,11 @@ func (s *Server) onActionUse(c *GameClient, r *packet.Reader) {
 
 // onTargetCancel is Java clientpackets/combat/RequestTargetCancel.
 func (s *Server) onTargetCancel(c *GameClient, r *packet.Reader) {
-	unselect := r.ReadH()
-	if unselect == 0 {
-		// Java aborts the current cast here; without a cast pipeline nothing to abort.
-		c.Send(ActionFailed())
-		return
-	}
+	_ = r.ReadH()
 	c.target = 0
+	if p := c.Player(); p != nil {
+		c.Send(TargetUnselected(p.ObjectID, p.X, p.Y, p.Z))
+	}
 }
 
 // onSay2 is Java clientpackets/Say2.
@@ -573,6 +571,7 @@ func (s *Server) onShortCutDel(c *GameClient, r *packet.Reader) {
 		kept = append(kept, sc)
 	}
 	p.Shortcuts = append([]Shortcut(nil), kept...)
+	c.Send(ShortCutDel(id))
 	_ = s.store.Update(c.ctx(), p)
 }
 
