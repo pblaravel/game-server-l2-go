@@ -93,6 +93,10 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		z := r.ReadD()
 		ts := r.ReadQ()
 		p.Heading = heading
+		fromX, fromY, fromZ := p.X, p.Y, p.Z
+		loc := Geo().ValidLocation(fromX, fromY, fromZ, x, y, z)
+		blocked := loc.X != x || loc.Y != y
+		x, y, z = loc.X, loc.Y, loc.Z
 		p.X, p.Y, p.Z = x, y, z
 		p.MoveDirX = int32(dirX * 100)
 		p.MoveDirY = int32(dirY * 100)
@@ -102,8 +106,8 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		pkt := MoveDirection(p.ObjectID, p.MoveDirY, p.MoveDirX, p.VerticalVel, x, y, z, ts)
 		c.Send(pkt)
 		c.Broadcast(pkt)
-		if need {
-			// ActionFailed only when blocked; here movement is accepted.
+		if need || blocked {
+			c.Send(ActionFailed())
 		}
 	case 0x04: // Action
 		s.onAction(c, r)

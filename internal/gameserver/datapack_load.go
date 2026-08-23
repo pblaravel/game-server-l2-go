@@ -59,9 +59,13 @@ func LoadDatapack(dataDir string) error {
 		log.Printf("datapack restart points: %v", err)
 	}
 	loadExtraDatapack(dataDir)
-	log.Printf("datapack: %d skill levels, %d classes, %d items, %d npcs, %d buylists, %d teleport npcs, %d restart points, %d player levels, %d recipes, %d armor sets, %d zones, %d doors, %d hennas, %d multisell",
+	if err := LoadGeoEngine(dataDir); err != nil {
+		log.Printf("datapack geodata: %v", err)
+	}
+	attachDoorGeo()
+	log.Printf("datapack: %d skill levels, %d classes, %d items, %d npcs, %d buylists, %d teleport npcs, %d restart points, %d player levels, %d recipes, %d armor sets, %d zones, %d doors, %d hennas, %d multisell, %d geo regions",
 		SkillCount(), ClassCount(), ItemCount(), NpcTemplateCount(), BuyListCount(), TeleportListCount(), RestartPointCount(), PlayerLevelCount(),
-		RecipeCount(), ArmorSetCount(), ZoneCount(), DoorCount(), HennaCount(), MultisellCount())
+		RecipeCount(), ArmorSetCount(), ZoneCount(), DoorCount(), HennaCount(), MultisellCount(), Geo().LoadedRegions())
 	return nil
 }
 

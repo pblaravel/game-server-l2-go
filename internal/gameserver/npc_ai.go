@@ -54,7 +54,8 @@ func (s *Server) runAggroScan() {
 			if p == nil || p.AlikeDead() {
 				continue
 			}
-			if Distance3D(p.X, p.Y, p.Z, npc.X, npc.Y, npc.Z) <= float64(npc.AggroRange) {
+			if Distance3D(p.X, p.Y, p.Z, npc.X, npc.Y, npc.Z) <= float64(npc.AggroRange) &&
+				Geo().CanSeeWorld(npc.X, npc.Y, npc.Z, npc.CollisionHeight, p.X, p.Y, p.Z, p.CollisionHeight) {
 				s.engageNPC(npc, c)
 				break
 			}
@@ -114,19 +115,22 @@ func (s *Server) moveNPCToward(npc *NPC, p *Character) {
 	npc.InCombat = true
 	npc.Heading = headingTo(npc.X, npc.Y, p.X, p.Y)
 	step := float64(npc.RunSpeed) * 0.5 // half a second of running
-	dist := Distance2D(npc.X, npc.Y, p.X, p.Y)
-	if dist <= 0 {
+	if Distance2D(npc.X, npc.Y, p.X, p.Y) <= 0 {
 		return
 	}
-	ratio := step / dist
-	if ratio > 1 {
-		ratio = 1
-	}
 	fromX, fromY, fromZ := npc.X, npc.Y, npc.Z
-	npc.X += int32(float64(p.X-npc.X) * ratio)
-	npc.Y += int32(float64(p.Y-npc.Y) * ratio)
-	npc.Z = p.Z
-	s.Broadcast(MoveToLocation(npc.ObjectID, p.X, p.Y, p.Z, fromX, fromY, fromZ), nil)
+	dest := Geo().StepToward(npc.X, npc.Y, npc.Z, p.X, p.Y, p.Z)
+	stepDist := Distance2D(npc.X, npc.Y, dest.X, dest.Y)
+	if stepDist > 0 {
+		stepRatio := step / stepDist
+		if stepRatio > 1 {
+			stepRatio = 1
+		}
+		npc.X += int32(float64(dest.X-npc.X) * stepRatio)
+		npc.Y += int32(float64(dest.Y-npc.Y) * stepRatio)
+		npc.Z = dest.Z
+	}
+	s.Broadcast(MoveToLocation(npc.ObjectID, dest.X, dest.Y, dest.Z, fromX, fromY, fromZ), nil)
 }
 
 func (s *Server) returnNPCHome(npc *NPC) {
@@ -150,6 +154,9 @@ func (s *Server) npcAttack(npc *NPC, c *GameClient) {
 	npc.InCombat = true
 	p.InCombat = true
 	c.lastHit = time.Now()
+	if !Geo().CanSeeWorld(npc.X, npc.Y, npc.Z, npc.CollisionHeight, p.X, p.Y, p.Z, p.CollisionHeight) {
+		return
+	}
 
 	behind := IsBehind(npc.X, npc.Y, p.X, p.Y, p.Heading)
 	inFront := IsInFrontOf(npc.X, npc.Y, p.X, p.Y, p.Heading)

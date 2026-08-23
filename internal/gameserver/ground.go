@@ -68,9 +68,10 @@ func (s *Server) dropPlayerItem(c *GameClient, objectID, count, x, y, z int32) *
 		}
 		RemoveItemCount(p, objectID, count)
 	}
+	loc := Geo().ValidLocation(p.X, p.Y, p.Z, x, y, z)
 	g := &GroundItem{
 		ObjectID: groundOID, ItemID: itemID, Count: count, Enchant: enchant,
-		X: x, Y: y, Z: z, Dropper: p.ObjectID,
+		X: loc.X, Y: loc.Y, Z: loc.Z, Dropper: p.ObjectID,
 	}
 	s.world.AddGroundItem(g)
 	return g

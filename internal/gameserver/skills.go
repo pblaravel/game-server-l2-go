@@ -232,6 +232,11 @@ func (s *Server) castSkill(c *GameClient, skillID, level int32) {
 			c.Send(ActionFailed())
 			return
 		}
+		if !Geo().CanSeeWorld(p.X, p.Y, p.Z, p.CollisionHeight, npc.X, npc.Y, npc.Z, npc.CollisionHeight) {
+			c.casting.Store(false)
+			c.Send(ActionFailed())
+			return
+		}
 	}
 
 	hitTime := CalcAtkSpd(float64(tpl.HitTime), tpl.IsMagic, p.PAtkSpd, p.MAtkSpd)

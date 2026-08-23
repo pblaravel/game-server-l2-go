@@ -22,6 +22,8 @@ type DoorTemplate struct {
 	PDef    int32
 	MDef    int32
 	Height  int32
+	Opened  bool
+	Coords  [][2]int32
 }
 
 type StaticObject struct {
@@ -262,12 +264,27 @@ type xmlDoorFile struct {
 }
 
 type xmlDoor struct {
-	ID    int32        `xml:"id,attr"`
-	Type  string       `xml:"type,attr"`
-	Level int32        `xml:"level,attr"`
-	Name  string       `xml:"name,attr"`
-	Pos   xmlDoorPos   `xml:"position"`
-	Stats xmlDoorStats `xml:"stats"`
+	ID       int32         `xml:"id,attr"`
+	Type     string        `xml:"type,attr"`
+	Level    int32         `xml:"level,attr"`
+	Name     string        `xml:"name,attr"`
+	Pos      xmlDoorPos    `xml:"position"`
+	Stats    xmlDoorStats  `xml:"stats"`
+	Function xmlDoorFunc   `xml:"function"`
+	Coords   xmlDoorCoords `xml:"coordinates"`
+}
+
+type xmlDoorFunc struct {
+	Opened bool `xml:"opened,attr"`
+}
+
+type xmlDoorCoords struct {
+	Locs []xmlDoorLoc `xml:"loc"`
+}
+
+type xmlDoorLoc struct {
+	X int32 `xml:"x,attr"`
+	Y int32 `xml:"y,attr"`
 }
 
 type xmlDoorPos struct {
@@ -290,10 +307,15 @@ func loadDoorXML(path string) error {
 	}
 	next := map[int32]DoorTemplate{}
 	for _, d := range root.Doors {
+		coords := make([][2]int32, 0, len(d.Coords.Locs))
+		for _, loc := range d.Coords.Locs {
+			coords = append(coords, [2]int32{loc.X, loc.Y})
+		}
 		next[d.ID] = DoorTemplate{
 			ID: d.ID, Name: d.Name, Type: d.Type, Level: d.Level,
 			X: d.Pos.X, Y: d.Pos.Y, Z: d.Pos.Z,
 			HP: d.Stats.HP, PDef: d.Stats.PDef, MDef: d.Stats.MDef, Height: d.Stats.Height,
+			Opened: d.Function.Opened, Coords: coords,
 		}
 	}
 	worldMu.Lock()

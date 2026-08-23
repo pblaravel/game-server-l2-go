@@ -28,6 +28,8 @@ func LoadProperties(paths ...string) (Properties, error) {
 			}
 			k, v, ok := strings.Cut(line, "=")
 			if !ok {
+				// Java Properties: a bare key (geoengine region list) has an empty value.
+				p[line] = ""
 				continue
 			}
 			p[strings.TrimSpace(k)] = strings.TrimSpace(v)

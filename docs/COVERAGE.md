@@ -2,12 +2,14 @@
 
 Reference trees: `reference/l2-unity-loginserver` (75 `.java`),
 `reference/l2-unity-gameserver` (2301 `.java`, ~339k lines).
-Go implementation: 75 non-test files.
+Go implementation: 81 non-test files.
 
 The **wire API is the contract**: opcodes, packet layouts, Blowfish/RSA/GameCrypt,
 session keys, ports. Gameplay logic is ported from the Java sources wherever the
 data it needs is available. The Java `data/xml` tree is vendored and parsed
-except geodata, HTML, the disabled spawnlist and the Java quest script sources.
+except HTML, the disabled spawnlist and the Java quest script sources.
+Geodata binaries are not vendored; `GeoEngine` loads `data/geodata/*.l2j` /
+`*_conv.dat` when present and uses Null blocks otherwise.
 
 Packet layouts are checked by `internal/gameserver/layout_test.go`, which walks
 every server packet with the field sequence transcribed from its Java class.
@@ -116,13 +118,14 @@ brackets, age limit, test server, PvP server, max players).
 | User commands | `RequestUserCommand` | ported `/loc`, `/time`, `/unstuck` (instant), `/partyinfo` |
 | Quest list packet | `RequestQuestList` | empty `QuestList` (no quest scripts) |
 | Mini-map | `RequestShowMiniMap` | ported (`ShowMiniMap` 1665) |
+| Geodata / pathfinding | `GeoEngine`, `PathFinder`, `DoorData` geo objects | ported (L2J/L2OFF load, LOS, `canMove` / `getValidLocation`, A* path, door footprints). Binary region files are optional; missing files stay Null / unrestricted |
 
 ## Game server — still not ported
 
 XML tables for the remaining Java loaders are now vendored and parsed. These
 still need the gameplay managers / packets on top of that data:
 
-- `GeoEngine`, pathfinding, live door/static-object spawn
+- Live door / static-object spawn packets (`DoorInfo` is unused in the Unity tree)
 - Quests and the Java script tree (`scripts.xml` is only an index)
 - Clan warehouse / freight
 - Clans, allies, wars, crests, command channel
@@ -137,7 +140,8 @@ still need the gameplay managers / packets on top of that data:
 
 `internal/config/game.go` covers the settings this port needs; Java `Config`
 exposes several hundred more (`RATE_*`, `ENCHANT_*`, `OLY_*`, `SEVEN_SIGNS_*`,
-`GEODATA_PATH`, `INVENTORY_*`, `AUTO_LOOT`, …). About 30 Java tables
+`INVENTORY_*`, `AUTO_LOOT`, …). Geoengine settings load from
+`data/geodata/geoengine.properties`. About 30 Java tables
 (community board, auctions, manor, petitions, olympiad fights, cursed
 weapons, …) are still absent from the Go schema.
 
@@ -189,7 +193,7 @@ consults the loaded table.
 | `BoatData` | `xml/boatRoutes.xml` | yes | yes | table loaded |
 | `ScriptData` | `xml/scripts.xml` + quest tree | partial | index only | quest Java sources not ported |
 | `HtmCache` | `data/html/` | no | — | |
-| `GeoEngine` | `data/geodata/` | no | — | |
+| `GeoEngine` | `data/geodata/` | properties | yes | movement / LOS / AI / doors |
 
 Item XML now also stores `crystal_type`, `crystal_count`, `is_dropable`, `soulshots`, `spiritshots` and `default_action`. Npc XML still skips
 `<skills>` and AI fields.
