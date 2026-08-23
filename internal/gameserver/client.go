@@ -40,6 +40,9 @@ type GameClient struct {
 
 	activeEnchant int32
 	multiSellID   int32
+
+	record bool
+	sent   [][]byte
 }
 
 func NewGameClient(conn net.Conn, srv *Server) *GameClient {
@@ -112,6 +115,9 @@ func (c *GameClient) Send(payload []byte) {
 		return
 	}
 	dup := bytes.Clone(payload)
+	if c.record {
+		c.sent = append(c.sent, bytes.Clone(payload))
+	}
 	c.logSend(payload)
 	c.crypt.Encrypt(dup)
 	if err := packet.WriteFrame(c.conn, dup); err != nil {
@@ -142,6 +148,35 @@ func (c *GameClient) Close() {
 		c.server.login.SendLogout(c.account)
 	}
 	_ = c.conn.Close()
+}
+
+func (c *GameClient) RecordSends() {
+	c.mu.Lock()
+	c.record = true
+	c.sent = nil
+	c.mu.Unlock()
+}
+
+func (c *GameClient) Sent() [][]byte {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := make([][]byte, len(c.sent))
+	for i, p := range c.sent {
+		out[i] = append([]byte(nil), p...)
+	}
+	return out
+}
+
+func (c *GameClient) SentOpcodes() []byte {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := make([]byte, 0, len(c.sent))
+	for _, p := range c.sent {
+		if len(p) > 0 {
+			out = append(out, p[0])
+		}
+	}
+	return out
 }
 
 func (c *GameClient) CloseNow() { c.Close() }

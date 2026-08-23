@@ -94,7 +94,12 @@ func (c *LoginClient) CharsOnServ() map[int]int { return c.charsOnServ }
 func (c *LoginClient) Serve() {
 	defer c.Disconnect()
 	c.ls.AddClient(c)
-	if err := c.Send(InitPacket(c.pair.ScrambledModulus, c.blowfish, c.sessionID)); err != nil {
+	init := InitPacket(c.pair.ScrambledModulus, c.blowfish, c.sessionID)
+	if c.ls.Config().InterludeClient {
+		// Unity stores Init.PublicKey and encrypts with it as-is (no L2 scramble).
+		init = InterludeInitPacket(crypt.RSAModulusBytes(&c.pair.Private.PublicKey), c.blowfish, c.sessionID)
+	}
+	if err := c.Send(init); err != nil {
 		return
 	}
 	c.lastEcho = time.Now()
@@ -143,11 +148,27 @@ func (c *LoginClient) handle(data []byte) {
 	}
 	switch data[0] {
 	case ClientPing:
+		// Interlude RequestAuthLogin is also 0x00 but carries a 128-byte RSA block.
+		if c.ls.Config().InterludeClient && len(data) >= 1+128 {
+			c.onAuth(data)
+			return
+		}
 		c.SetLastEcho(time.Now())
 		_ = c.Send(PingPacket())
 	case ClientAuthRequest:
 		c.onAuth(data)
+	case ClientAuthGameGuard:
+		c.onGameGuard(data)
+	case ClientRequestServerListInterlude:
+		c.onServerList(data)
 	case ClientRequestServerList:
+		// Interlude RequestServerLogin is 0x02 (serverId, key1, key2). Java
+		// RequestServerList is the same opcode with only two keys; padding
+		// makes length useless, so the remap is gated on InterludeClient.
+		if c.ls.Config().InterludeClient {
+			c.onInterludeServerLogin(data)
+			return
+		}
 		c.onServerList(data)
 	case ClientRequestServerLogin:
 		c.onServerLogin(data)
@@ -256,6 +277,30 @@ func (c *LoginClient) accountOnAnyGS(account string) *GameServerInfo {
 		}
 	}
 	return nil
+}
+
+func (c *LoginClient) onGameGuard(data []byte) {
+	r := packet.NewReader(data)
+	r.SkipOpcode()
+	sid := r.ReadD()
+	c.SetLastEcho(time.Now())
+	_ = c.Send(GGAuthPacket(sid))
+}
+
+func (c *LoginClient) onInterludeServerLogin(data []byte) {
+	r := packet.NewReader(data)
+	r.SkipOpcode()
+	serverID, s1, s2 := r.ReadD(), r.ReadD(), r.ReadD()
+	if !(c.ls.Config().ShowLicense || c.sessionKey.CheckLoginPair(s1, s2)) {
+		c.CloseLoginFail(ReasonAccessFailed)
+		return
+	}
+	if c.ls.IsLoginPossible(c, int(serverID), c.gsc) {
+		c.joinedGS = true
+		_ = c.Send(PlayOkPacket(c.sessionKey))
+	} else {
+		_ = c.Send(PlayFailPacket(ReasonServerOverloaded))
+	}
 }
 
 func (c *LoginClient) onServerList(data []byte) {

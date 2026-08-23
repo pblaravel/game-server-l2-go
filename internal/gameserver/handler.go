@@ -41,8 +41,8 @@ func (s *Server) handle(c *GameClient, data []byte) {
 			s.onCharDelete(c, data)
 		case 0x0D:
 			s.onGameStart(c, data)
-		case 0x0E:
-			c.Send(CharSelectInfo(c.AccountName(), c.SessionKey().PlayOkID1, c.Slots()))
+		case 0x0E: // RequestNewCharacter → CharTemplates / NewCharacterSuccess
+			c.Send(NewCharacterSuccess())
 		case 0x62:
 			s.onCharRestore(c, data)
 		}
@@ -185,6 +185,10 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		s.onRestart(c)
 	case 0x48: // ValidatePosition
 		s.onValidatePosition(c, r)
+	case 0x55: // RequestGiveNickName
+		s.onGiveNickName(c, r)
+	case 0x57: // RequestShowBoard
+		s.onShowBoard(c)
 	case 0x58: // RequestEnchantItem
 		s.onEnchantItem(c, r)
 	case 0x59: // RequestDestroyItem
@@ -199,6 +203,16 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		s.onFriendDel(c, r)
 	case 0x63: // RequestQuestList
 		s.onQuestList(c)
+	case 0x64: // RequestQuestAbort
+		s.onQuestAbort(c, r)
+	case 0x66: // RequestPledgeInfo
+		s.onPledgeInfo(c, r)
+	case 0x24: // RequestJoinPledge
+		s.onJoinPledge(c, r)
+	case 0x26: // RequestWithdrawPledge
+		s.onWithdrawPledge(c)
+	case 0x27: // RequestOustPledgeMember
+		s.onOustPledgeMember(c, r)
 	case 0x6B: // RequestAcquireSkillInfo
 		s.onAcquireSkillInfo(c, r)
 	case 0x6C: // RequestAcquireSkill
@@ -227,6 +241,12 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		s.onSetPrivateStoreMsgBuy(c, r)
 	case 0x96: // RequestPrivateStoreSell
 		s.onPrivateStoreSell(c, r)
+	case 0x9D: // RequestSkillCoolTime
+		s.onSkillCoolTime(c)
+	case 0x9E: // RequestPackageSendableItemList
+		s.onPackageSendable(c, r)
+	case 0x9F: // RequestPackageSend
+		s.onPackageSend(c, r)
 	case 0xA7: // MultiSellChoose
 		s.onMultiSellChoose(c, r)
 	case 0xAA: // RequestUserCommand
@@ -251,6 +271,10 @@ func (s *Server) handleInGame(c *GameClient, op byte, data []byte) {
 		s.onHennaUnequipInfo(c, r)
 	case 0xBF: // RequestHennaUnequip
 		s.onHennaUnequip(c, r)
+	case 0xC0: // RequestPledgePower
+		s.onPledgePower(c, r)
+	case 0xC6: // RequestPreviewItem (Interlude; Unity move is 0x02)
+		s.onPreviewItem(c, r)
 	case 0xCD: // RequestShowMiniMap
 		s.onShowMiniMap(c)
 	default:
@@ -446,6 +470,12 @@ func (s *Server) onEnterWorld(c *GameClient) {
 	c.Send(ItemList(p.Items, false))
 	c.Send(SkillList(p.Skills))
 	c.Send(ShortCutInit(p.Shortcuts))
+	c.Send(QuestList())
+	c.Send(HennaInfo(p))
+	c.Send(MacroList())
+	c.Send(FriendList(p.Friends, nil))
+	c.Send(EtcStatusUpdate(p))
+	c.Send(AbnormalStatusUpdate())
 	c.Send(StatusUpdate(p.ObjectID, [][2]int32{
 		{StatusCurHP, int32(p.CurHP)}, {StatusMaxHP, p.MaxHP},
 		{StatusCurMP, int32(p.CurMP)}, {StatusMaxMP, p.MaxMP},

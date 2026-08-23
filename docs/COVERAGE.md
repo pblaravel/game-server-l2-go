@@ -38,8 +38,14 @@ Password handling is the Java behaviour: the client sends hash bytes, the server
 stores `Base64(bytes)` and compares strings
 (`ClientPacketHandler.java` → `internal/loginserver/packets.go`).
 
-`GGAuth`, `ChangeAccessLevel` and `RequestTempBan` are unimplemented in Java too.
-Java login has **no SQL seed rows**; `gameservers` is filled when a GS registers.
+`ChangeAccessLevel` and `RequestTempBan` are unimplemented in Java too.
+`GGAuth 0x0B` is implemented for the Interlude/Unity login sequence
+(`server.client.interlude` / `INTERLUDE_CLIENT`). Java login has **no SQL seed
+rows**; `gameservers` is filled when a GS registers.
+
+Unity Interlude (protocol 746) outgoing packets are listed in
+`internal/clientapi` and checked by `internal/gameserver/client_contract_test.go`
+plus `internal/loginserver/interlude_test.go`.
 
 ## Game server — protocol
 
