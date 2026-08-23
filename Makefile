@@ -12,11 +12,16 @@ test:
 load:
 	go test ./internal/loginserver ./internal/gameserver -count=1 -run Load -v
 
+api-test:
+	go test ./internal/apitest ./internal/crypt -count=1
+
 build:
 	mkdir -p bin
 	go build -o bin/loginserver ./cmd/loginserver
 	go build -o bin/gameserver ./cmd/gameserver
 	go build -o bin/smoketest ./cmd/smoketest
+	go build -o bin/apirest ./cmd/apirest
+	go build -o bin/apicompare ./cmd/apicompare
 
 login:
 	go run ./cmd/loginserver
