@@ -110,6 +110,36 @@ func EncXORPassAt(raw []byte, offset, size int, key int32) {
 	raw[pos+3] = byte(ecx >> 24)
 }
 
+// DecXORPass reverses EncXORPass so a login client can read Init fields.
+func DecXORPass(raw []byte) {
+	DecXORPassAt(raw, 0, len(raw))
+}
+
+func DecXORPassAt(raw []byte, offset, size int) {
+	if size < 12 {
+		return
+	}
+	pos := offset + size - 8
+	ecx := int32(raw[pos]) |
+		int32(raw[pos+1])<<8 |
+		int32(raw[pos+2])<<16 |
+		int32(raw[pos+3])<<24
+	pos -= 4
+	for pos >= 4+offset {
+		edx := int32(raw[pos]) |
+			int32(raw[pos+1])<<8 |
+			int32(raw[pos+2])<<16 |
+			int32(raw[pos+3])<<24
+		edx ^= ecx
+		raw[pos] = byte(edx)
+		raw[pos+1] = byte(edx >> 8)
+		raw[pos+2] = byte(edx >> 16)
+		raw[pos+3] = byte(edx >> 24)
+		ecx -= edx
+		pos -= 4
+	}
+}
+
 func RequireBlockSize(size int) error {
 	if size%8 != 0 {
 		return fmt.Errorf("size have to be multiple of 8")

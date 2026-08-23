@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"math/big"
 	"testing"
 )
 
@@ -130,6 +131,36 @@ func TestGameCryptStream(t *testing.T) {
 	d.Decrypt(second)
 	if !bytes.Equal(second, orig) {
 		t.Fatalf("gamecrypt decrypt mismatch %v != %v", second, orig)
+	}
+}
+
+func TestJavaModulusBytesAddsSignByte(t *testing.T) {
+	n := new(big.Int).SetBytes([]byte{0x80, 0x00})
+	got := JavaModulusBytes(n)
+	if len(got) != 3 || got[0] != 0x00 || got[1] != 0x80 {
+		t.Fatalf("%x", got)
+	}
+	n = new(big.Int).SetBytes([]byte{0x7F, 0x00})
+	got = JavaModulusBytes(n)
+	if len(got) != 2 || got[0] != 0x7F {
+		t.Fatalf("%x", got)
+	}
+}
+
+func TestDecXORPassRoundTrip(t *testing.T) {
+	plain := []byte{
+		0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+		0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
+		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+	}
+	enc := append([]byte(nil), plain...)
+	EncXORPass(enc, 0x12345678)
+	if bytes.Equal(enc[4:len(enc)-8], plain[4:len(plain)-8]) {
+		t.Fatal("payload between offset 4 and size-8 must change")
+	}
+	DecXORPass(enc)
+	if !bytes.Equal(enc[:len(plain)-8], plain[:len(plain)-8]) {
+		t.Fatalf("DecXORPass did not restore Init fields:\n got %x\nwant %x", enc, plain)
 	}
 }
 
