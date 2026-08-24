@@ -35,9 +35,12 @@ reference/        # original Java trees
 ## Run
 
 ```bash
-make docker-up             # postgres + login (2107/9015) + game (7778)
+make docker-up             # Go: postgres + login (2107/9015) + game (7778)
 make docker-smoke          # checks login Init, InitLS, game VersionCheck
+make docker-java-up        # Java: MariaDB + login (2107/9015) + game (7778)
 ```
+
+`docker-compose.java.yml` поднимает **оригинальные Java**-серверы из `reference/` (MariaDB 11.4, не PostgreSQL). Порты те же, что у Go-стека — одновременно оба compose не запускайте. XML datapack монтируется из `./data`; бинарной геодаты в репо нет, Java GeoEngine стартует на Null-тайлах.
 
 Or without Docker:
 

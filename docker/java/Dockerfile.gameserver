@@ -1,0 +1,19 @@
+# Build the vendored Java gameserver (aCis / l2-unity).
+FROM gradle:8.14.3-jdk21 AS build
+WORKDIR /src
+COPY . .
+RUN gradle --no-daemon --no-parallel installDist
+
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends netcat-openbsd \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir -p /app/log/chat /app/log/console /app/log/error /app/log/gmaudit /app/log/item /app/data/crests
+COPY --from=build /src/build/install/l2-unity-gameserver /opt/gs
+COPY conf /app/conf
+# GeoEngine calls System.exit(1) if a listed region file is missing.
+# Datapack geodata binaries are not vendored — do not list any tiles.
+RUN sed -i -E 's/^(16_24|16_25|17_24|17_25)$/#\1/' /app/conf/geoengine.properties \
+ && rm -f /app/conf/hexid.txt
+EXPOSE 7778
+CMD ["java", "-cp", "/opt/gs/lib/*", "com.shnok.javaserver.gameserver.GameServer"]
