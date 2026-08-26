@@ -50,12 +50,12 @@ func startGoLogin(t *testing.T) (Target, func()) {
 	waitListen(t, cfg.LoginServerPort)
 	waitListen(t, cfg.GameServerPort)
 	return Target{
-			Login: net.JoinHostPort("127.0.0.1", itoa(cfg.LoginServerPort)),
-			GSReg: net.JoinHostPort("127.0.0.1", itoa(cfg.GameServerPort)),
-		}, func() {
-			cancel()
-			<-done
-		}
+		Login: net.JoinHostPort("127.0.0.1", itoa(cfg.LoginServerPort)),
+		GSReg: net.JoinHostPort("127.0.0.1", itoa(cfg.GameServerPort)),
+	}, func() {
+		cancel()
+		<-done
+	}
 }
 
 func startGoGame(t *testing.T) (string, func()) {

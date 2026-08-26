@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/pblaravel/game-server-l2-go/internal/apitest"
 )
@@ -17,5 +18,10 @@ func main() {
 
 	api := &apitest.REST{Target: apitest.Target{Login: *login, GSReg: *gsreg, Game: *game}}
 	log.Printf("REST facade on %s → login=%s gsreg=%s game=%s", *listen, *login, *gsreg, *game)
-	log.Fatal(http.ListenAndServe(*listen, api.Handler()))
+	srv := &http.Server{
+		Addr:              *listen,
+		Handler:           api.Handler(),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	log.Fatal(srv.ListenAndServe())
 }

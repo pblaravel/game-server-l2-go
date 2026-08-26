@@ -3,6 +3,7 @@ package gameserver
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -95,7 +96,7 @@ func (c *GameClient) Serve() {
 	for {
 		body, err := packet.ReadFrame(c.conn)
 		if err != nil {
-			if c.logTraceEnabled() && err != io.EOF {
+			if c.logTraceEnabled() && !errors.Is(err, io.EOF) {
 				log.Printf("GS DISCONNECT %s err=%v", c.tag(), err)
 			} else if c.logTraceEnabled() {
 				log.Printf("GS DISCONNECT %s", c.tag())

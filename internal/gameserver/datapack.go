@@ -116,7 +116,7 @@ var classKits = map[int32]ClassKit{
 }
 
 func ApplyStarterKit(ch *Character, nextItemID func() int32) {
-	items := []NewbieItem(nil)
+	var items []NewbieItem
 	if tpl := GetClassTemplate(ch.ClassID); tpl != nil && len(tpl.Items) > 0 {
 		items = tpl.Items
 	} else if kit, ok := classKits[ch.ClassID]; ok {

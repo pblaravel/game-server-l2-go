@@ -2,7 +2,7 @@ package gameserver
 
 import (
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 	"time"
 )
@@ -73,11 +73,11 @@ func CalcHitMiss(accuracy, evasion, attackerZ, targetZ int32, behind, inFront bo
 	if chance > 980 {
 		chance = 980
 	}
-	return int32(rand.Intn(1000)) >= chance
+	return int32(rand.IntN(1000)) >= chance
 }
 
 // CalcCrit is Java Formulas.calcCrit: the rate is out of 1000.
-func CalcCrit(rate int32) bool { return int(rate) > rand.Intn(1000) }
+func CalcCrit(rate int32) bool { return int(rate) > rand.IntN(1000) }
 
 // PosMul is Java Formulas.getPosMul.
 func PosMul(behind, inFront, crit bool) float64 {
@@ -102,7 +102,7 @@ func RandomDamageMultiplier(randomDamage int32) float64 {
 	if randomDamage <= 0 {
 		return 1
 	}
-	return 1 + float64(rand.Intn(int(2*randomDamage+1))-int(randomDamage))/100
+	return 1 + float64(rand.IntN(int(2*randomDamage+1))-int(randomDamage))/100
 }
 
 // CalcPhysicalAttackDamage is Java Formulas.calcPhysicalAttackDamage. Elemental,

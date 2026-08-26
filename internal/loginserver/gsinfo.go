@@ -4,15 +4,15 @@ import "sync"
 
 // GameServerInfo matches Java com.shnok.javaserver.model.GameServerInfo.
 type GameServerInfo struct {
-	mu              sync.Mutex
-	id              int
-	hexID           []byte
-	authed          bool
-	thread          *GameServerThread
-	status          int
-	hostname        string
-	port            int
-	maxPlayers      int
+	mu         sync.Mutex
+	id         int
+	hexID      []byte
+	authed     bool
+	thread     *GameServerThread
+	status     int
+	hostname   string
+	port       int
+	maxPlayers int
 }
 
 func NewGameServerInfo(id int, hexID []byte, thread *GameServerThread) *GameServerInfo {

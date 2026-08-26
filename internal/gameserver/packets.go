@@ -795,12 +795,12 @@ const (
 	GaugeGreen int32 = 3
 )
 
-func SetupGauge(color, current, max int32) []byte {
+func SetupGauge(color, current, maxTime int32) []byte {
 	return gsWrite(func(w *packet.Writer) {
 		w.WriteC(0x6D)
 		w.WriteD(color)
 		w.WriteD(current)
-		w.WriteD(max)
+		w.WriteD(maxTime)
 	})
 }
 

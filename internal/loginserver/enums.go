@@ -2,9 +2,9 @@ package loginserver
 
 // Client opcodes (ClientPacketType).
 const (
-	ClientPing              byte = 0x00
-	ClientAuthRequest       byte = 0x01
-	ClientRequestServerList byte = 0x02
+	ClientPing               byte = 0x00
+	ClientAuthRequest        byte = 0x01
+	ClientRequestServerList  byte = 0x02
 	ClientRequestServerLogin byte = 0x03
 	// Interlude / Unity client (l2-unity Assets/Scripts/Networking).
 	ClientAuthGameGuard              byte = 0x07
@@ -75,20 +75,20 @@ const (
 
 // LoginFailReason / PlayFailReason codes used by the Java server.
 const (
-	ReasonNoMessage              byte = 0x00
-	ReasonSystemErrorLoginLater  byte = 0x01
-	ReasonUserOrPassWrong        byte = 0x02
-	ReasonAccountInUse           byte = 0x07
-	ReasonServerOverloaded       byte = 0x0F
-	ReasonAccessFailed           byte = 0x15
-	ReasonInactive               byte = 0x24
+	ReasonNoMessage             byte = 0x00
+	ReasonSystemErrorLoginLater byte = 0x01
+	ReasonUserOrPassWrong       byte = 0x02
+	ReasonAccountInUse          byte = 0x07
+	ReasonServerOverloaded      byte = 0x0F
+	ReasonAccessFailed          byte = 0x15
+	ReasonInactive              byte = 0x24
 )
 
 const (
-	KickDataStealer        byte = 0x01
-	KickGenericViolation   byte = 0x08
-	Kick7DaysSuspended     byte = 0x10
-	KickPermanentlyBanned  byte = 0x20
+	KickDataStealer       byte = 0x01
+	KickGenericViolation  byte = 0x08
+	Kick7DaysSuspended    byte = 0x10
+	KickPermanentlyBanned byte = 0x20
 )
 
 const (

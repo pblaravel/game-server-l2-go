@@ -275,13 +275,6 @@ func (e *GeoEngine) CanMoveTo(ox, oy, oz, tx, ty, tz int) bool {
 			nx += mdt.signumX
 			dir = mdt.dirX
 		} else {
-			checkY = gridY + mdt.offsetY
-			if m == 0 {
-				checkX = ox
-			} else {
-				checkX = int(float64(ox) + float64(checkY-oy)/m)
-			}
-			checkX = clampInt(checkX, gridX, gridX+15)
 			gridY += mdt.stepY
 			ny += mdt.signumY
 			dir = mdt.dirY

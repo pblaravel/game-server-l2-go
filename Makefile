@@ -1,4 +1,4 @@
-.PHONY: tidy test test-short load build login game docker-up docker-down docker-smoke docker-java-up docker-java-down docker-java-logs
+.PHONY: tidy test test-short load build login game lint docker-up docker-down docker-smoke docker-java-up docker-java-down docker-java-logs
 
 tidy:
 	go mod tidy
@@ -14,6 +14,9 @@ load:
 
 api-test:
 	go test ./internal/apitest ./internal/crypt -count=1
+
+lint:
+	golangci-lint run ./...
 
 build:
 	mkdir -p bin

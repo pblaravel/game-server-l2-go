@@ -17,8 +17,8 @@ type GameServerController struct {
 	cfg   config.LoginConfig
 	store GameServerStore
 
-	mu      sync.Mutex
-	servers map[int]*GameServerInfo
+	mu       sync.Mutex
+	servers  map[int]*GameServerInfo
 	keyPairs []*rsa.PrivateKey
 }
 

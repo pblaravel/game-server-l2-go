@@ -63,9 +63,10 @@ func LoadDatapack(dataDir string) error {
 		log.Printf("datapack geodata: %v", err)
 	}
 	attachDoorGeo()
-	log.Printf("datapack: %d skill levels, %d classes, %d items, %d npcs, %d buylists, %d teleport npcs, %d restart points, %d player levels, %d recipes, %d armor sets, %d zones, %d doors, %d hennas, %d multisell, %d geo regions",
+	log.Printf("datapack: %d skill levels, %d classes, %d items, %d npcs, %d buylists, %d teleport npcs, %d restart points, %d player levels, %d recipes, %d armor sets, %d zones, %d doors, %d hennas, %d multisell, %d geo regions, %d clan hall decos, %d manor areas, %d manor crops, %d observer entries, %d augment stats",
 		SkillCount(), ClassCount(), ItemCount(), NpcTemplateCount(), BuyListCount(), TeleportListCount(), RestartPointCount(), PlayerLevelCount(),
-		RecipeCount(), ArmorSetCount(), ZoneCount(), DoorCount(), HennaCount(), MultisellCount(), Geo().LoadedRegions())
+		RecipeCount(), ArmorSetCount(), ZoneCount(), DoorCount(), HennaCount(), MultisellCount(), Geo().LoadedRegions(),
+		ClanHallDecoCount(), ManorAreaCount(), ManorCropCount(), ObserverEntryCount(), AugmentStatCount())
 	return nil
 }
 

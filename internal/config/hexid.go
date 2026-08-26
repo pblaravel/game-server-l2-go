@@ -63,7 +63,7 @@ func SaveHexID(path string, serverID int, hexID []byte) error {
 		return err
 	}
 	body := fmt.Sprintf("# the hexID to auth into login\nServerID=%d\nHexID=%s\n", serverID, hex.EncodeToString(hexID))
-	return os.WriteFile(path, []byte(body), 0o644)
+	return os.WriteFile(path, []byte(body), 0o600)
 }
 
 func applyHexIDFile(cfg *GameConfig) {

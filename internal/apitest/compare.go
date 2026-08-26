@@ -7,19 +7,19 @@ import (
 
 // Snapshot is a structural dump of every login/game request the Java server accepts.
 type Snapshot struct {
-	Backend   string              `json:"backend"`
-	Init      *InitResult         `json:"loginInit"`
-	Ping      *PingResult         `json:"loginPing"`
-	Auth      *AuthResult         `json:"loginAuth"`
-	AuthFail  *AuthResult         `json:"loginAuthWrongPassword"`
-	GSReg     *GSRegResult        `json:"gsRegister"`
-	Servers   *ServerListResult   `json:"loginServers"`
-	Play      *PlayResult         `json:"loginPlay"`
-	PlayDown  *PlayResult         `json:"loginPlayMissingServer"`
-	InitLS    *InitLSResult       `json:"gsregInit"`
-	Protocol  *VersionCheckResult `json:"gameProtocol740"`
-	Errors    map[string]string   `json:"errors,omitempty"`
-	hold      *GSHold
+	Backend  string              `json:"backend"`
+	Init     *InitResult         `json:"loginInit"`
+	Ping     *PingResult         `json:"loginPing"`
+	Auth     *AuthResult         `json:"loginAuth"`
+	AuthFail *AuthResult         `json:"loginAuthWrongPassword"`
+	GSReg    *GSRegResult        `json:"gsRegister"`
+	Servers  *ServerListResult   `json:"loginServers"`
+	Play     *PlayResult         `json:"loginPlay"`
+	PlayDown *PlayResult         `json:"loginPlayMissingServer"`
+	InitLS   *InitLSResult       `json:"gsregInit"`
+	Protocol *VersionCheckResult `json:"gameProtocol740"`
+	Errors   map[string]string   `json:"errors,omitempty"`
+	hold     *GSHold
 }
 
 func (s *Snapshot) Close() {
@@ -199,10 +199,10 @@ type JavaContract struct {
 func ExpectedJavaContract() JavaContract {
 	return JavaContract{
 		InitOpcode: 0x00, InitRSAModLen: 128, InitBlowfishLen: 16,
-		PingOpcode: 0x63,
+		PingOpcode:    0x63,
 		LoginOkOpcode: 0x03, LoginFailOpcode: 0x01, UserOrPassWrong: 0x02,
 		ServerListOpcode: 0x04,
-		PlayOkOpcode: 0x07, PlayFailOpcode: 0x06, ServerOverloaded: 0x0F,
+		PlayOkOpcode:     0x07, PlayFailOpcode: 0x06, ServerOverloaded: 0x0F,
 		InitLSOpcode: 0x00, InitLSRevision: 0x0102, InitLSRSAMin: 64, InitLSRSAMax: 65,
 		AuthRespOpcode: 0x02, AuthRespName: "Bartz",
 		VersionOpcode: 0x00, VersionOK: 0x01, VersionKeyLen: 8, VersionTrailer: 1,

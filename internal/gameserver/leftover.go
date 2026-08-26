@@ -64,9 +64,7 @@ func EtcStatusUpdate(p *Character) []byte {
 		w.WriteD(0) // chat banned
 		w.WriteD(0) // danger area
 		w.WriteD(0) // expertise
-		if p != nil && p.CurrentWeight > p.WeightLimit && p.WeightLimit > 0 {
-			// keep zeros; client still gets the packet
-		}
+		_ = p       // weight/charge fields stay 0 until penalty tables are ported
 	})
 }
 
@@ -199,12 +197,12 @@ func (s *Server) onUserCommand(c *GameClient, r *packet.Reader) {
 	case 77: // /time
 		minutes := s.world.GameTime()
 		hour := minutes / 60
-		min := minutes % 60
+		mins := minutes % 60
 		id := SMTimeS1S2InTheDay
 		if hour < 6 {
 			id = SMTimeS1S2InTheNight
 		}
-		c.Send(SystemMessage(id, SysNumber(hour), SysText(fmt.Sprintf("%02d", min))))
+		c.Send(SystemMessage(id, SysNumber(hour), SysText(fmt.Sprintf("%02d", mins))))
 	case 81: // /partyinfo
 		pt := s.partyOf(p)
 		if pt == nil {

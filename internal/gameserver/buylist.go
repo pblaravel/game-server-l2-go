@@ -21,10 +21,9 @@ type BuyProduct struct {
 }
 
 var (
-	buyMu      sync.RWMutex
-	buyByID    = map[int32]NpcBuyList{}
-	buyByNpc   = map[int32][]int32{}
-	buysLoaded bool
+	buyMu    sync.RWMutex
+	buyByID  = map[int32]NpcBuyList{}
+	buyByNpc = map[int32][]int32{}
 )
 
 func GetBuyList(id int32) *NpcBuyList {
@@ -110,7 +109,6 @@ func loadBuyListXML(path string) error {
 	buyMu.Lock()
 	buyByID = next
 	buyByNpc = byNpc
-	buysLoaded = len(next) > 0
 	buyMu.Unlock()
 	return nil
 }

@@ -2,7 +2,7 @@ package gameserver
 
 import (
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"sort"
 	"strings"
 	"time"
