@@ -82,9 +82,9 @@ func (c *LoginClient) SetCharsOnServ(servID, chars int) {
 	c.mu.Unlock()
 	if ready {
 		if c.ls.Config().ShowLicense {
-			c.Send(LoginOkPacket(c.sessionKey))
+			_ = c.Send(LoginOkPacket(c.sessionKey))
 		} else {
-			c.Send(c.buildServerList())
+			_ = c.Send(c.buildServerList())
 		}
 	}
 }

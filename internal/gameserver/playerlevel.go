@@ -36,7 +36,6 @@ type PlayerLevelRow struct {
 var (
 	playerLevelMu   sync.RWMutex
 	playerLevelByLv = map[int32]PlayerLevelRow{}
-	playerLevelsOK  bool
 )
 
 func ExpForLevel(level int) int64 {
@@ -104,10 +103,10 @@ func loadPlayerLevelXML(path string) error {
 		return fmt.Errorf("no playerLevel rows in %s", path)
 	}
 	next := make(map[int32]PlayerLevelRow, len(root.Levels))
-	max := 0
+	maxLv := 0
 	for _, lv := range root.Levels {
-		if int(lv.Level) > max {
-			max = int(lv.Level)
+		if int(lv.Level) > maxLv {
+			maxLv = int(lv.Level)
 		}
 		next[lv.Level] = PlayerLevelRow{
 			Level:        lv.Level,
@@ -116,8 +115,8 @@ func loadPlayerLevelXML(path string) error {
 			ExpLossDeath: lv.ExpLoss,
 		}
 	}
-	table := make([]int64, max+1)
-	for i := 1; i <= max; i++ {
+	table := make([]int64, maxLv+1)
+	for i := 1; i <= maxLv; i++ {
 		if row, ok := next[int32(i)]; ok {
 			table[i] = row.Exp
 		}
@@ -125,7 +124,6 @@ func loadPlayerLevelXML(path string) error {
 	playerLevelMu.Lock()
 	PlayerLevelExp = table
 	playerLevelByLv = next
-	playerLevelsOK = true
 	playerLevelMu.Unlock()
 	return nil
 }

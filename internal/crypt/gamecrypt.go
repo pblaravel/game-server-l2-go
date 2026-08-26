@@ -7,9 +7,9 @@ var StaticCryptKeyTail = []byte{0xc8, 0x27, 0x93, 0x01, 0xa1, 0x6c, 0x31, 0x97}
 
 // GameCrypt is the L2 XOR stream cipher used on the client↔gameserver link.
 type GameCrypt struct {
-	inKey    [16]byte
-	outKey   [16]byte
-	enabled  bool
+	inKey     [16]byte
+	outKey    [16]byte
+	enabled   bool
 	useCipher bool
 }
 

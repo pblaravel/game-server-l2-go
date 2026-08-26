@@ -201,7 +201,7 @@ func (r *CharacterRepo) Create(ctx context.Context, ch *gameserver.Character) er
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 	_, err = tx.Exec(ctx, `INSERT INTO characters (
 		obj_id, account_name, char_name, title, level, maxhp, curhp, maxmp, curmp, maxcp, curcp,
 		face, hairstyle, haircolor, sex, heading, x, y, z, exp, sp, karma, pvpkills, pkkills, clanid, race, classid, base_class,
@@ -224,7 +224,7 @@ func (r *CharacterRepo) Update(ctx context.Context, ch *gameserver.Character) er
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 	_, err = tx.Exec(ctx, `UPDATE characters SET title=$2, level=$3, maxhp=$4, curhp=$5, maxmp=$6, curmp=$7, maxcp=$8, curcp=$9,
 		heading=$10, x=$11, y=$12, z=$13, exp=$14, sp=$15, karma=$16, pvpkills=$17, pkkills=$18, lastaccess=$19, classid=$20
 		WHERE obj_id=$1`,
@@ -244,7 +244,7 @@ func (r *CharacterRepo) Delete(ctx context.Context, id int32) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 	if _, err := tx.Exec(ctx, `DELETE FROM items WHERE owner_id=$1`, id); err != nil {
 		return err
 	}
@@ -476,7 +476,7 @@ func (p *Pool) PersistDatapack(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 	if _, err := tx.Exec(ctx, `TRUNCATE skill_templates, class_skills`); err != nil {
 		return err
 	}

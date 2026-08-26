@@ -53,9 +53,8 @@ type DropData struct {
 }
 
 var (
-	npcMu      sync.RWMutex
-	npcByID    = map[int32]NpcTemplate{}
-	npcsLoaded bool
+	npcMu   sync.RWMutex
+	npcByID = map[int32]NpcTemplate{}
 )
 
 func GetNpcTemplate(id int32) *NpcTemplate {
@@ -131,7 +130,6 @@ func loadNpcXML(dir string) error {
 	}
 	npcMu.Lock()
 	npcByID = next
-	npcsLoaded = len(next) > 0
 	npcMu.Unlock()
 	return nil
 }

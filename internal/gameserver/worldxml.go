@@ -155,6 +155,30 @@ func ClanHallDataCount() int {
 	return len(clanHalls)
 }
 
+func ClanHallDecoCount() int {
+	worldMu.RLock()
+	defer worldMu.RUnlock()
+	return len(clanHallDecos)
+}
+
+func ManorAreaCount() int {
+	worldMu.RLock()
+	defer worldMu.RUnlock()
+	return len(manorAreas)
+}
+
+func ManorCropCount() int {
+	worldMu.RLock()
+	defer worldMu.RUnlock()
+	return len(manorCrops)
+}
+
+func ObserverEntryCount() int {
+	worldMu.RLock()
+	defer worldMu.RUnlock()
+	return len(observerEntries)
+}
+
 func SpawnXMLCount() int {
 	worldMu.RLock()
 	defer worldMu.RUnlock()

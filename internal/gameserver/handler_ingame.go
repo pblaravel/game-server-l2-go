@@ -2,7 +2,6 @@ package gameserver
 
 import (
 	"log"
-	"time"
 
 	"github.com/pblaravel/game-server-l2-go/internal/packet"
 )
@@ -672,8 +671,4 @@ func targetColor(p *Character, n *NPC) int16 {
 		return 0
 	}
 	return int16(p.Level - n.Level)
-}
-
-func (s *Server) touchPlayer(p *Character) {
-	p.LastAccess = time.Now().UnixMilli()
 }

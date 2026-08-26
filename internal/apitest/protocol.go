@@ -154,10 +154,10 @@ func LoginPing(addr string) (*PingResult, error) {
 }
 
 type AuthResult struct {
-	Opcode    byte  `json:"opcode"`
-	LoginOk1  int32 `json:"loginOk1,omitempty"`
-	LoginOk2  int32 `json:"loginOk2,omitempty"`
-	FailReason byte `json:"failReason,omitempty"`
+	Opcode     byte  `json:"opcode"`
+	LoginOk1   int32 `json:"loginOk1,omitempty"`
+	LoginOk2   int32 `json:"loginOk2,omitempty"`
+	FailReason byte  `json:"failReason,omitempty"`
 }
 
 func buildAuthPlain(account string, hash []byte) []byte {
@@ -268,10 +268,10 @@ func parseServerList(body []byte) (*ServerListResult, error) {
 }
 
 type PlayResult struct {
-	Opcode   byte  `json:"opcode"`
-	PlayOk1  int32 `json:"playOk1,omitempty"`
-	PlayOk2  int32 `json:"playOk2,omitempty"`
-	FailReason byte `json:"failReason,omitempty"`
+	Opcode     byte  `json:"opcode"`
+	PlayOk1    int32 `json:"playOk1,omitempty"`
+	PlayOk2    int32 `json:"playOk2,omitempty"`
+	FailReason byte  `json:"failReason,omitempty"`
 }
 
 func LoginPlay(addr, account string, passHash []byte, serverID int) (*PlayResult, error) {
@@ -513,11 +513,11 @@ func authReqPkt(id int, hex []byte) []byte {
 }
 
 type VersionCheckResult struct {
-	Opcode       byte  `json:"opcode"`
-	OK           byte  `json:"ok"`
-	KeyLen       int   `json:"keyLen"`
-	BlowfishFlag int32 `json:"blowfishFlag"`
-	Trailer      int32 `json:"trailer"`
+	Opcode       byte   `json:"opcode"`
+	OK           byte   `json:"ok"`
+	KeyLen       int    `json:"keyLen"`
+	BlowfishFlag int32  `json:"blowfishFlag"`
+	Trailer      int32  `json:"trailer"`
 	Key8         []byte `json:"-"`
 }
 

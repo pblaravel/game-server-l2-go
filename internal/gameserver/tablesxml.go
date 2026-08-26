@@ -214,6 +214,12 @@ func AugmentSkillCount() int {
 	return len(augmentSkills)
 }
 
+func AugmentStatCount() int {
+	tableMu.RLock()
+	defer tableMu.RUnlock()
+	return augmentStatCount
+}
+
 func GetAccessLevel(level int32) *AccessLevel {
 	tableMu.RLock()
 	defer tableMu.RUnlock()

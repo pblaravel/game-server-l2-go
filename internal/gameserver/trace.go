@@ -241,17 +241,17 @@ var serverOpcodeNames = map[byte]string{
 	0xC6: "MoveDirection",
 }
 
-func hexPreview(b []byte, max int) string {
+func hexPreview(b []byte, limit int) string {
 	if len(b) == 0 {
 		return "(empty)"
 	}
-	if max <= 0 {
-		max = 48
+	if limit <= 0 {
+		limit = 48
 	}
-	if len(b) <= max {
+	if len(b) <= limit {
 		return fmt.Sprintf("%x (%dB)", b, len(b))
 	}
-	return fmt.Sprintf("%x… (%dB)", b[:max], len(b))
+	return fmt.Sprintf("%x… (%dB)", b[:limit], len(b))
 }
 
 func (c *GameClient) tag() string {

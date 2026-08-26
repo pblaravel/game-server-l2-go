@@ -206,9 +206,8 @@ func TestHennaEquipAndUnequip(t *testing.T) {
 	defer stop()
 	AddItem(p, h.DyeID, hennaDrawAmount, srv.nextItemID)
 	AddAdena(p, h.Price, srv.nextItemID)
-	baseSTR := p.STR
 	RecalcStats(p)
-	baseSTR = p.STR
+	baseSTR := p.STR
 	w := packet.NewWriter()
 	w.WriteC(0xBC)
 	w.WriteD(h.SymbolID)

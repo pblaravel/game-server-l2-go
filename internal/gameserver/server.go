@@ -79,7 +79,7 @@ func (s *Server) Run(ctx context.Context) error {
 		conn, err := ln.Accept()
 		if err != nil {
 			if ctx.Err() != nil {
-				return nil
+				return ctx.Err()
 			}
 			return err
 		}
