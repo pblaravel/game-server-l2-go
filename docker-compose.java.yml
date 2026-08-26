@@ -1,0 +1,81 @@
+# Java login + gameserver (reference/l2-unity-*).
+# Separate from docker-compose.yml (Go + PostgreSQL).
+#
+#   make docker-java-up
+#   docker compose -f docker-compose.java.yml up -d --build
+#
+# Host ports match the Java fork (2107 / 9015 / 7778). Do not start the Go
+# compose at the same time unless you remap one of the stacks.
+#
+# Unity datapack XML is mounted from ./data. Geodata binaries are not vendored;
+# GeoEngine starts with Null tiles (listed regions are commented in the image).
+
+name: l2java
+
+services:
+  mariadb:
+    image: mariadb:11.4
+    environment:
+      MARIADB_ROOT_PASSWORD: l2unity
+      MARIADB_DATABASE: l2unity
+      MARIADB_USER: l2unity
+      MARIADB_PASSWORD: l2unity
+    ports:
+      - "${JAVA_DB_PORT:-3306}:3306"
+    volumes:
+      - java-mariadb:/var/lib/mysql
+      - ./reference/l2-unity-gameserver/gameserver/db/sql:/java-sql:ro
+      - ./docker/java/init-db.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  loginserver:
+    build:
+      context: ./reference/l2-unity-loginserver/loginserver
+      dockerfile: docker/java/Dockerfile.login
+    ports:
+      - "${JAVA_LOGIN_PORT:-2107}:2107"
+      - "${JAVA_GSREG_PORT:-9015}:9015"
+    volumes:
+      - ./docker/java/conf/loginserver/server.properties:/app/conf/server.properties:ro
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 2107"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+      start_period: 20s
+    restart: unless-stopped
+
+  gameserver:
+    build:
+      context: ./reference/l2-unity-gameserver/gameserver
+      dockerfile: docker/java/Dockerfile.gameserver
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms256m -Xmx2g
+    ports:
+      - "${JAVA_GAME_PORT:-7778}:7778"
+    volumes:
+      - ./docker/java/conf/gameserver/server.properties:/app/conf/server.properties:ro
+      - ./data:/app/data
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      loginserver:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 7778"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 90s
+    restart: unless-stopped
+
+volumes:
+  java-mariadb:

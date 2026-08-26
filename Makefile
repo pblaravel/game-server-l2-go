@@ -1,4 +1,4 @@
-.PHONY: tidy test test-short load build login game docker-up docker-down docker-smoke
+.PHONY: tidy test test-short load build login game docker-up docker-down docker-smoke docker-java-up docker-java-down docker-java-logs
 
 tidy:
 	go mod tidy
@@ -41,3 +41,13 @@ docker-down:
 
 docker-smoke: docker-up
 	docker compose --profile test run --rm smoketest
+
+# Java reference servers (MariaDB + login + gameserver). Ports 2107/9015/7778.
+docker-java-up: docker-net
+	docker compose -f docker-compose.java.yml up -d --build
+
+docker-java-down:
+	docker compose -f docker-compose.java.yml down
+
+docker-java-logs:
+	docker compose -f docker-compose.java.yml logs -f
